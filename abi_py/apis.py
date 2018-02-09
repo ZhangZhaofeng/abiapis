@@ -19,7 +19,7 @@ def print_bittrex():
     print(bittrex_api.get_markets())
 
 def print_huobi():
-    print(huobi.get_symbols())
+    print(huobi.get_ticker('btcusdt'))
 
 def print_bitflyer():
     bitflyer_api = pybitflyer.API()
@@ -27,7 +27,8 @@ def print_bitflyer():
 
 def print_bitbank():
     bitbank_api = public_api.bitbankcc_public()
-    print(bitbank_api.get_ticker('btc_jpy'))
+    print(bitbank_api.get_ticker('eth_btc'))
+    print(bitbank_api.get_depth('eth_btc'))
 
 def test_api_time():
     execute_list=['print_bittrex','print_huobi','print_bitflyer','print_bitbank']
@@ -38,13 +39,25 @@ def test_api_time():
         t1 = Timer(execute_str, from_str)
         print(t1.timeit(1))
 
-
+def get_bid_ask_huobi(product_pair):
+    if product_pair == '':
+        product_pair = 'BTC_USDT'
+    elif product_pair =='BTC_ETH':
+        product_pair = 'ethbtc'
+    elif product_pair =='BTC_LTC':
+        product_pair = 'ltcbtc'
+    jsons_dict = huobi.get_ticker(product_pair)
+    bid = jsons_dict['tick']['bid'][0]
+    ask = jsons_dict['tick']['ask'][0]
+    return([bid,ask])
 
 def get_bid_ask_bittrex(product_pair):
     if product_pair == '':
         product_pair = 'BTC_USDT'
     elif product_pair =='BTC_ETH':
         product_pair = 'BTC-ETH'
+    elif product_pair =='BTC_LTC':
+        product_pair = 'BTC-LTC'
     bittrex_api = bittrex.Bittrex('', '')
     #jsons_dict = bittrex_api.get_markets()
     jsons_dict = bittrex_api.get_ticker(product_pair)
@@ -55,12 +68,24 @@ def get_bid_ask_bittrex(product_pair):
 #def ask_huobi():
  #   huobi.get_ticker()
 
+def get_bid_ask_bitbank(product_pair):
+    if product_pair == 'BTC_JPY':
+        product_pair = 'btc_jpy'
+    elif product_pair =='BTC_ETH':
+        product_pair = 'eth_btc'
+    bitbank_api = public_api.bitbankcc_public()
+    jsons_dict = bitbank_api.get_ticker(product_pair)
+    ask = float(jsons_dict['sell'])
+    bid = float(jsons_dict['buy'])
+    return ([bid, ask])
 
 def get_bid_ask_bitflyer(product_pair):
     if product_pair == '':
         product_pair = 'BTC_JPY'
     elif product_pair =='BTC_ETH':
         product_pair = 'ETH_BTC'
+    elif product_pair =='BTC_LTC':
+        product_pair = 'LTC_BTC'
     bitflyer_api = pybitflyer.API()
     jsons_dict = bitflyer_api.ticker(product_code='%s'%(product_pair))
     bid = jsons_dict['best_bid']
@@ -99,15 +124,26 @@ def treading_fees(rate, market):
 
 
 if __name__ == '__main__':
+    print_bitbank()
+
     product_pair = 'BTC_ETH'
+    print_huobi()
+
+    #product_pair = 'BTC_JPY'
 
     while 1:
         results_bitflyer = get_bid_ask_bitflyer(product_pair)
         results_bittrex = get_bid_ask_bittrex(product_pair)
-        [rate,direction] = calculate_rate(results_bitflyer, results_bittrex)
-        rate = treading_fees(rate, 'bittrex')
-        rate = treading_fees(rate, 'bitflyer')
-        print (rate)
-        time.sleep(1)
+        results_bitbank = get_bid_ask_bitbank(product_pair)
+        results_huobi = get_bid_ask_huobi(product_pair)
+        [rate1, direction1] = calculate_rate(results_bitflyer, results_bittrex)
+        [rate2, direction2] = calculate_rate(results_bitbank, results_bittrex)
+        [rate3, direction3] = calculate_rate(results_bitbank, results_bitflyer)
+        [rate4, direction4] = calculate_rate(results_bitbank, results_huobi)
+        [rate5, direction5] = calculate_rate(results_bitflyer, results_huobi)
+        [rate6, direction6] = calculate_rate(results_bittrex, results_huobi)
+        print ('f-r:%f, b-r:%f, b-f:%f\n'%(rate1,rate2,rate3))
+        print('b-h:%f, f-h:%f, r-h:%f\n' % (rate4, rate5, rate6))
+        time.sleep(10)
 
 
