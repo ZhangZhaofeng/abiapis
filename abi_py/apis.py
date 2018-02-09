@@ -102,9 +102,9 @@ def calculate_rate(result_bid_ask1,result_bid_ask2):
         buy = result_bid_ask2[1]
         direction = 2 # buy at 2 sell at 1
     # if 2's sell bigger than 1's buy
-    elif result_bid_ask2[1] > result_bid_ask1[0]:
-        sell = result_bid_ask1[1]
-        buy = result_bid_ask2[0]
+    elif result_bid_ask2[0] > result_bid_ask1[1]:
+        sell = result_bid_ask2[0]
+        buy = result_bid_ask1[1]
         direction = 1 # buy at 1 sell at 2
     else:
         return (0,0)
@@ -123,6 +123,54 @@ def treading_fees(rate, market):
     return(rate - fees)
 
 
+
+
+
+def write_record(fname,rate,direction,str1,str2):
+    fid = open(fname,'a')
+    if direction ==1:
+        buy = str1
+        sell = str2
+    else:
+        buy = str2
+        sell = str1
+
+
+    time_str = time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime())
+    write_str = 'buy: %s, sell: %s, profit: %f %% time: %s \n'%(buy,sell,rate,time_str)
+    fid.write(write_str)
+    fid.close()
+
+
+def compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold, filename):
+    [rate1, direction1] = calculate_rate(results_bitflyer, results_bittrex)
+    if rate1 > threadhold:
+        write_record(filename, rate1, direction1, str_bitflyer, str_bittrex)
+
+    [rate2, direction2] = calculate_rate(results_bitbank, results_bittrex)
+    if rate2 > threadhold:
+        write_record(filename, rate2, direction2, str_bitbank, str_bittrex)
+
+    [rate3, direction3] = calculate_rate(results_bitbank, results_bitflyer)
+    if rate3 > threadhold:
+        write_record(filename, rate3, direction3, str_bitbank, str_bitflyer)
+
+    [rate4, direction4] = calculate_rate(results_bitbank, results_huobi)
+    if rate4 > threadhold:
+        write_record(filename, rate4, direction4, str_bitbank, str_huobi)
+
+    [rate5, direction5] = calculate_rate(results_bitflyer, results_huobi)
+    if rate5 > threadhold:
+        write_record(filename, rate5, direction5, str_bitflyer, str_huobi)
+
+    [rate6, direction6] = calculate_rate(results_bittrex, results_huobi)
+    if rate6 > threadhold:
+        write_record(filename, rate6, direction6, str_bittrex, str_huobi)
+
+    print('f-r:%f, b-r:%f, b-f:%f\n' % (rate1, rate2, rate3))
+    print('b-h:%f, f-h:%f, r-h:%f\n' % (rate4, rate5, rate6))
+
+
 if __name__ == '__main__':
     print_bitbank()
 
@@ -131,19 +179,33 @@ if __name__ == '__main__':
 
     #product_pair = 'BTC_JPY'
 
+    #print(time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime()))
+    fname1 = '/home/zhang/Templates/recording2.txt'
+    fname2 = '/home/zhang/Templates/recording4.txt'
+    fname3 = '/home/zhang/Templates/recording6.txt'
+
+    fid = open(fname1,'w')
+    fid.close()
+    fid = open(fname2, 'w')
+    fid.close()
+    fid = open(fname3, 'w')
+    fid.close()
+    threadhold1 = 2
+    threadhold2 = 4
+    threadhold3 = 6
+    str_bitflyer = 'bitflyer'
+    str_bittrex = 'bittrex'
+    str_huobi = 'huobi'
+    str_bitbank = 'bitbank'
+
     while 1:
         results_bitflyer = get_bid_ask_bitflyer(product_pair)
         results_bittrex = get_bid_ask_bittrex(product_pair)
         results_bitbank = get_bid_ask_bitbank(product_pair)
         results_huobi = get_bid_ask_huobi(product_pair)
-        [rate1, direction1] = calculate_rate(results_bitflyer, results_bittrex)
-        [rate2, direction2] = calculate_rate(results_bitbank, results_bittrex)
-        [rate3, direction3] = calculate_rate(results_bitbank, results_bitflyer)
-        [rate4, direction4] = calculate_rate(results_bitbank, results_huobi)
-        [rate5, direction5] = calculate_rate(results_bitflyer, results_huobi)
-        [rate6, direction6] = calculate_rate(results_bittrex, results_huobi)
-        print ('f-r:%f, b-r:%f, b-f:%f\n'%(rate1,rate2,rate3))
-        print('b-h:%f, f-h:%f, r-h:%f\n' % (rate4, rate5, rate6))
+        compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold1, fname1)
+        compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold2, fname2)
+        compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold3, fname3)
         time.sleep(10)
 
 
