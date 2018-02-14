@@ -1,16 +1,28 @@
+
 #!/usr/bin/python3
+
 
 from tradingapis.bittrex_api import bittrex
 from tradingapis.huobi_api import huobi
-#from tradingapis.binance_api import client,exceptions
 from tradingapis.bitflyer_api import pybitflyer
 from tradingapis.bitbank_api import public_api
+from tradingapis.zaif_api.impl import ZaifPublicApi,ZaifTradeApi
+from tradingapis.quoine_api import client
+
 
 
 from timeit import Timer
 import time
 #import json
 
+
+def print_quoine():
+    quoine_api = client.Quoine()
+    print(quoine_api.get_product(5))
+
+def print_zaif():
+    zaif_api =ZaifPublicApi()
+    print(zaif_api.ticker('btc_jpy'))
 
 def print_bittrex():
     bittrex_api = bittrex.Bittrex('', '')
@@ -110,7 +122,7 @@ def calculate_rate(result_bid_ask1,result_bid_ask2):
     return((sell-buy)/sell*100,direction)
 
 
-def treading_fees(rate, market):
+def trading_fees(rate, market):
 
     if market == 'bittrex':
         fees = 0.25
@@ -119,6 +131,8 @@ def treading_fees(rate, market):
     else:
         fees = 0
     return(rate - fees)
+
+
 
 
 
@@ -173,6 +187,9 @@ if __name__ == '__main__':
     product_pair = 'BTC_ETH'
     print_huobi()
 
+
+    print_zaif()
+    print_quoine()
     #product_pair = 'BTC_JPY'
 
     #print(time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime()))
