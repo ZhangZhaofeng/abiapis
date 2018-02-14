@@ -1,12 +1,10 @@
-
 #!/usr/bin/python3
 
-
-from treadingapis.bittrex_api import bittrex
-from treadingapis.huobi_api import huobi
-#from treadingapis.binance_api import client,exceptions
-from treadingapis.bitflyer_api import pybitflyer
-from treadingapis.bitbank_api import public_api
+from tradingapis.bittrex_api import bittrex
+from tradingapis.huobi_api import huobi
+#from tradingapis.binance_api import client,exceptions
+from tradingapis.bitflyer_api import pybitflyer
+from tradingapis.bitbank_api import public_api
 
 
 from timeit import Timer
@@ -121,8 +119,6 @@ def treading_fees(rate, market):
     else:
         fees = 0
     return(rate - fees)
-
-
 
 
 
