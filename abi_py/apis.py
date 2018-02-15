@@ -102,6 +102,10 @@ def get_bid_ask_bitflyer(product_pair):
     ask = jsons_dict['best_ask']
     return ([bid, ask])
 
+def get_bid_ask_zaif(product_pair):
+    zaif_api=ZaifPublicApi()
+    print(zaif_api.ticker(product_pair))
+
 
 def calculate_rate(result_bid_ask1,result_bid_ask2):
 
@@ -131,9 +135,6 @@ def trading_fees(rate, market):
     else:
         fees = 0
     return(rate - fees)
-
-
-
 
 
 def write_record(fname,rate,direction,str1,str2):
@@ -185,13 +186,15 @@ if __name__ == '__main__':
     # print_bitbank()
     # print_bitflyer()
 
-    product_pair = 'BTC_ETH'
+    product_pair = 'BTC_JPY'
     # print_huobi()
 
 
     # print_zaif()
-    print_quoine()
+    # print_quoine()
     #product_pair = 'BTC_JPY'
+
+    get_bid_ask_zaif(product_pair)
 
     #print(time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime()))
     fname1 = '/home/zhang/Templates/recording2.txt'
