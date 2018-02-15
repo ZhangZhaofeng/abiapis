@@ -1,5 +1,5 @@
-
 #!/usr/bin/python3
+# coding=utf-8
 
 
 from tradingapis.bittrex_api import bittrex
@@ -33,7 +33,7 @@ def print_huobi():
 
 def print_bitflyer():
     bitflyer_api = pybitflyer.API()
-    print(bitflyer_api.ticker())
+    print(bitflyer_api.ticker(product_code= "BTC_JPY"))
 
 def print_bitbank():
     bitbank_api = public_api.bitbankcc_public()
@@ -182,13 +182,14 @@ def compute_and_record(results_bitflyer, results_bittrex, results_bitbank, resul
 
 
 if __name__ == '__main__':
-    print_bitbank()
+    # print_bitbank()
+    # print_bitflyer()
 
     product_pair = 'BTC_ETH'
-    print_huobi()
+    # print_huobi()
 
 
-    print_zaif()
+    # print_zaif()
     print_quoine()
     #product_pair = 'BTC_JPY'
 
