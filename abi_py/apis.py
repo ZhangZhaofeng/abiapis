@@ -103,8 +103,13 @@ def get_bid_ask_bitflyer(product_pair):
     return ([bid, ask])
 
 def get_bid_ask_zaif(product_pair):
+    if product_pair == 'BTC_JPY':
+        product_pair = 'btc_jpy'
     zaif_api=ZaifPublicApi()
-    print(zaif_api.ticker(product_pair))
+    ticker=zaif_api.ticker(product_pair)
+    bid = ticker['bid']
+    ask = ticker['ask']
+    return ([bid, ask])
 
 
 def calculate_rate(result_bid_ask1,result_bid_ask2):
