@@ -1,0 +1,5 @@
+abi_py/**/*.pyc*
+.idea/*
+abi_py/os
+abi_py/time
+abi_py/sys
