@@ -199,7 +199,9 @@ if __name__ == '__main__':
     # print_quoine()
     #product_pair = 'BTC_JPY'
 
-    get_bid_ask_zaif(product_pair)
+    [bid,ask]=get_bid_ask_zaif(product_pair)
+    print(bid)
+    print(ask)
 
     #print(time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime()))
     fname1 = '/home/zhang/Templates/recording2.txt'

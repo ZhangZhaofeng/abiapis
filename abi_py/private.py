@@ -11,9 +11,9 @@ import apis
 class AutoTrading:
     def __init__(self):
         print("Initializing API")
-        self.bitflyer_api = pybitflyer.API(api_key="xxx...", api_secret="yyy...")
-        self.zaif_api = ZaifTradeApi(key="xxx...", secret="yyy...")
-        self.quoinex_api = client.Quoinex(api_token_id="xxx...", api_secret="yyy...")
+        self.bitflyer_api = pybitflyer.API(api_key="", api_secret="")
+        self.zaif_api = ZaifTradeApi(key="", secret="")
+        self.quoinex_api = client.Quoinex(api_token_id="", api_secret="")
         self.bitbank_api = private_api.bitbankcc_private(api_key="xxx...", api_secret="yyy...")
 
     def trade_bitflyer(self, type, amount=0.01):
@@ -94,6 +94,25 @@ class AutoTrading:
         else:
             print("error!")
 
+    def get_asset_bitbank(self):
+        self.bitbank_api.get_asset()
+
+    def get_asset_bitflyer(self):
+        balances=self.bitflyer_api.getbalance(product_code="BTC_JPY")
+        print(balances)
+        jpy_avai=0.0
+        btc_avai=0.0
+        for balance in balances:
+            if balance['currency_code'] == 'JPY':
+                jpy_avai=balance['available']
+            elif balance['currency_code'] == 'BTC':
+                btc_avai = balance['available']
+        print(jpy_avai)
+        print(btc_avai)
+        return ([jpy_avai, btc_avai])
+
 
 if __name__ == '__main__':
     print("Shooting")
+    mytrade=AutoTrading()
+    mytrade.get_asset_bitflyer()
