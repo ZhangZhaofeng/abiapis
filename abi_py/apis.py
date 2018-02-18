@@ -107,9 +107,9 @@ def get_bid_ask_zaif(product_pair):
         product_pair = 'btc_jpy'
     zaif_api=ZaifPublicApi()
     ticker=zaif_api.ticker(product_pair)
-    bid = ticker['bid']
-    ask = ticker['ask']
-    return ([bid, ask])
+    bid = float(ticker['bid'])
+    ask = float(ticker['ask'])
+    return [bid, ask]
 
 
 def calculate_rate(result_bid_ask1,result_bid_ask2):
