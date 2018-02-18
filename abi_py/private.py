@@ -6,7 +6,7 @@ from tradingapis.bitbank_api import public_api, private_api
 from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.quoine_api import client
 import apis
-import keysecret as ks
+import my_keysecret as ks
 
 
 class AutoTrading:
@@ -172,11 +172,10 @@ class AutoTrading:
             return False
 
         [jpy_avai, btc_avai] = [0. , 0.]
-        [ask, bid] = [0., 0.]
+        [bid, ask] = [0., 0.]
         if bankname == "quoinex":
             [jpy_avai, btc_avai]=self.get_asset_quoinex()
-            # [ask, bid] = apis.get_bid_ask_quoinex()
-            [ask, bid] == [1000000000,100000000]
+            [bid, ask] = apis.get_bid_ask_quoinex('BTC_JPY')
         elif bankname == "bitbank":
             [jpy_avai, btc_avai] = self.get_asset_bitbank()
             [bid, ask] = apis.get_bid_ask_bitbank('BTC_JPY')
@@ -207,7 +206,7 @@ class AutoTrading:
             print ("Bankname invalid!")
             return False
 
-        if amount < 0.0:
+        if amount < 0.001:
             print("Amount invalid!")
             return False
 
@@ -246,7 +245,7 @@ if __name__ == '__main__':
 
     myarbitrage=Arbitrage()
 
-    if myarbitrage.arbitrage_once("quoinex","bitflyer",0.002) ==True:
+    if myarbitrage.arbitrage_once("quoinex","bitflyer",0.001) ==True:
         print("Successfully Executed!")
 
     # mytrade.trade_bitflyer("sell", amount=0.002)
