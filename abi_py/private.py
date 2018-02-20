@@ -121,7 +121,6 @@ class AutoTrading:
 
     def get_asset_bitflyer(self):
         balances = self.bitflyer_api.getbalance(product_code="BTC_JPY")
-        print(balances)
         jpy_avai = 0.0
         btc_avai = 0.0
         for balance in balances:
@@ -129,8 +128,6 @@ class AutoTrading:
                 jpy_avai = float(balance['available'])
             elif balance['currency_code'] == 'BTC':
                 btc_avai = float(balance['available'])
-        print(jpy_avai)
-        print(btc_avai)
         return ([jpy_avai, btc_avai])
 
     def get_asset_quoinex(self):
@@ -171,7 +168,7 @@ class AutoTrading:
 
     def execute_trade(self, bankname, action, amount):
         print("execute_trade")
-        if not(self.judge_asset(bankname,action,amount)):
+        if not (self.judge_asset(bankname, action, amount)):
             return False
 
         if bankname == "quoinex":
@@ -185,30 +182,30 @@ class AutoTrading:
 
         return True
 
-    def judge_asset(self,bankname, action, amount):
-        if not(self.check(bankname, action, amount)):
+    def judge_asset(self, bankname, action, amount):
+        if not (self.check(bankname, action, amount)):
             return False
 
-        [bid, ask, jpy_avai, btc_avai]=self.get_bank_info(bankname)
+        [bid, ask, jpy_avai, btc_avai] = self.get_bank_info(bankname)
 
-        if action=="buy" or action=="BUY":
-            if amount*ask > jpy_avai*1.02:
-                print ("Buy power is not enough!")
+        if action == "buy" or action == "BUY":
+            if amount * ask > jpy_avai * 1.02:
+                print("Buy power is not enough!")
                 return False
-        elif action=="sell" or action=="SELL":
-            if amount > btc_avai*0.99:
+        elif action == "sell" or action == "SELL":
+            if amount > btc_avai * 0.99:
                 print("Sell power is not enough!")
                 return False
 
         return True
 
-    def check(self,bankname, action, amount):
+    def check(self, bankname, action, amount):
         if action != "buy" and action != "sell" and action != "BUY" and action != "SELL":
             print("Action invalid!")
             return False
 
-        if bankname !="quoinex" and bankname !="zaif" and bankname !="bitbank" and bankname !="bitflyer":
-            print ("Bankname invalid!")
+        if bankname != "quoinex" and bankname != "zaif" and bankname != "bitbank" and bankname != "bitflyer":
+            print("Bankname invalid!")
             return False
 
         if amount < 0.001:
@@ -217,6 +214,13 @@ class AutoTrading:
 
         return True
 
+
+class Plan:
+    def __init__(self, _buybank, _sellbank, _tradable_percent=1.0):
+        self.buybank = _buybank
+        self.sellbank = _sellbank
+        assert (_tradable_percent >= 0. and _tradable_percent <= 1.)
+        self.tradable_percent = _tradable_percent
 
 class Arbitrage:
     def __init__(self):
@@ -228,57 +232,54 @@ class Arbitrage:
     def arbitrage_once(self, buy_bankname, sell_bankname, amount=0.001):
         print("arbitrage_once")
         # to do here
-        if not(self.autotrade.judge_asset(buy_bankname,"buy", amount)):
+        if not (self.autotrade.judge_asset(buy_bankname, "buy", amount)):
             return False
 
-        if not(self.autotrade.judge_asset(sell_bankname,"sell", amount)):
+        if not (self.autotrade.judge_asset(sell_bankname, "sell", amount)):
             return False
 
-        self.autotrade.execute_trade(buy_bankname,"buy",amount)
+        self.autotrade.execute_trade(buy_bankname, "buy", amount)
         self.autotrade.execute_trade(sell_bankname, "sell", amount)
         return True
 
-    def tradable_btc_amount(self, bankinfo, action):
+    def get_tradable_btc_amount(self, bankinfo, action):
         ratio = 0.97
 
         [bid, ask, jpy_avai, btc_avai] = bankinfo
 
-        if action== "buy" or action== "BUY":
-            return float(jpy_avai/ask*ratio)
-        elif action=="sell" or action=="SELL":
-            return float(btc_avai*ratio)
+        if action == "buy" or action == "BUY":
+            return float(jpy_avai / ask * ratio)
+        elif action == "sell" or action == "SELL":
+            return float(btc_avai * ratio)
 
-    def plan_eval(self, plan):
+    def get_plan_eval(self, plan):
         buybankinfo = self.autotrade.get_bank_info(plan.buybank)
         sellbankinfo = self.autotrade.get_bank_info(plan.sellbank)
 
-        tradable_btc = min([self.tradable_btc_amount(buybankinfo, "buy"),
-                            self.tradable_btc_amount(sellbankinfo, "sell")])
+        tradable_btc = min([self.get_tradable_btc_amount(buybankinfo, "buy"),
+                            self.get_tradable_btc_amount(sellbankinfo, "sell")])
 
         price_diff = sellbankinfo[0] - buybankinfo[1]
-        estm_profit = price_diff * tradable_btc
+        estm_profit = price_diff * tradable_btc * plan.percentage
 
+        print([price_diff, tradable_btc, estm_profit])
         return [price_diff, tradable_btc, estm_profit]
 
 
-
-
-
-
-
-
 if __name__ == '__main__':
-    print("Shooting")
+    print("Arb")
     mytrade = AutoTrading()
-    # mytrade.get_asset_bitflyer()
     print(mytrade.get_asset_bitflyer())
 
+    # trading example
     # mytrade.trade_zaif(type="sell", amount=0.001)
 
-    myarbitrage=Arbitrage()
+    # arb info example
+    myarbitrage = Arbitrage()
+    plan = Plan(_buybank="zaif", _sellbank="bitflyer", _tradable_percent=1.0)
+    myarbitrage.get_plan_eval(plan)
 
-    if myarbitrage.arbitrage_once("quoinex","bitflyer",0.001) ==True:
-        print("Successfully Executed!")
-
-    # mytrade.trade_bitflyer("sell", amount=0.002)
+    # arb trading example
+    # if myarbitrage.arbitrage_once("quoinex","bitflyer",0.001) ==True:
+    #     print("Successfully Executed!")
 
