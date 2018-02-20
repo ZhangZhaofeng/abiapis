@@ -6,7 +6,7 @@ from tradingapis.bitbank_api import public_api, private_api
 from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.quoine_api import client
 import apis
-import my_keysecret as ks
+import keysecret as ks
 
 
 class AutoTrading:
@@ -255,12 +255,13 @@ class Arbitrage:
     def get_plan_eval(self, plan):
         buybankinfo = self.autotrade.get_bank_info(plan.buybank)
         sellbankinfo = self.autotrade.get_bank_info(plan.sellbank)
+        percentage = plan.tradable_percent
 
         tradable_btc = min([self.get_tradable_btc_amount(buybankinfo, "buy"),
                             self.get_tradable_btc_amount(sellbankinfo, "sell")])
 
         price_diff = sellbankinfo[0] - buybankinfo[1]
-        estm_profit = price_diff * tradable_btc * plan.percentage
+        estm_profit = price_diff * tradable_btc * percentage
 
         print([price_diff, tradable_btc, estm_profit])
         return [price_diff, tradable_btc, estm_profit]
