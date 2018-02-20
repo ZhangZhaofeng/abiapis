@@ -12,8 +12,8 @@ from tradingapis.quoine_api import client
 from timeit import Timer
 import time
 
-
-# import json
+import threading
+#import json
 
 
 def print_quoine():
@@ -112,6 +112,31 @@ def get_bid_ask_bitflyer(product_pair):
     ask = jsons_dict['best_ask']
     return [bid, ask]
 
+def get_bid_ask_zaif(product_pair):
+    if product_pair == 'BTC_JPY':
+        product_pair = 'btc_jpy'
+    else:
+        product_pair = ''
+    zaif_api =ZaifPublicApi()
+    jsons_dict = zaif_api.ticker(product_pair)
+    bid = jsons_dict['bid']
+    ask = jsons_dict['ask']
+    return ([bid, ask])
+#TODO
+#def get_bid_ask_quoine():
+
+def get_bid_ask_quoine(product_pair):
+    if product_pair == 'BTC_JPY':
+        product_pair = 5
+    else:
+        product_pair = ''
+
+    quoine_api = client.Quoine()
+    jsons_dict = quoine_api.get_product(product_pair)
+    bid = jsons_dict['market_bid']
+    ask = jsons_dict['market_ask']
+    return([bid, ask])
+
 
 def get_bid_ask_zaif(product_pair):
     if product_pair == 'BTC_JPY':
@@ -180,75 +205,95 @@ def write_record(fname, rate, direction, str1, str2):
     fid.write(write_str)
     fid.close()
 
-
-def compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold, filename):
-    [rate1, direction1] = calculate_rate(results_bitflyer, results_bittrex)
-    if rate1 > threadhold:
-        write_record(filename, rate1, direction1, str_bitflyer, str_bittrex)
-
-    [rate2, direction2] = calculate_rate(results_bitbank, results_bittrex)
-    if rate2 > threadhold:
-        write_record(filename, rate2, direction2, str_bitbank, str_bittrex)
-
-    [rate3, direction3] = calculate_rate(results_bitbank, results_bitflyer)
-    if rate3 > threadhold:
-        write_record(filename, rate3, direction3, str_bitbank, str_bitflyer)
-
-    [rate4, direction4] = calculate_rate(results_bitbank, results_huobi)
-    if rate4 > threadhold:
-        write_record(filename, rate4, direction4, str_bitbank, str_huobi)
-
-    [rate5, direction5] = calculate_rate(results_bitflyer, results_huobi)
-    if rate5 > threadhold:
-        write_record(filename, rate5, direction5, str_bitflyer, str_huobi)
-
-    [rate6, direction6] = calculate_rate(results_bittrex, results_huobi)
-    if rate6 > threadhold:
-        write_record(filename, rate6, direction6, str_bittrex, str_huobi)
-
-    print('f-r:%f, b-r:%f, b-f:%f\n' % (rate1, rate2, rate3))
-    print('b-h:%f, f-h:%f, r-h:%f\n' % (rate4, rate5, rate6))
+#def print_rate(result_bid_ask1, string1, result_bid_ask2, string2):
 
 
 if __name__ == '__main__':
-    # print_bitbank()
-    # print_bitflyer()
+    #print_bitbank()
 
     product_pair = 'BTC_JPY'
-    # print_huobi()
+    #print_huobi()
+
+    class Mythread(threading.Thread):
+        def __init__(self,target,args):
+            super(Mythread,self).__init__()
+            self.target = target
+            self.args = args
+
+        def run(self):
+            self.result = self.target(*self.args)
+        def get_result(self):
+            try:
+                return self.result
+            except Exception:
+                return None
 
 
-    # print_zaif()
-    # print_quoine()
-    # product_pair = 'BTC_JPY'
+    t_zaif = Mythread(target=get_bid_ask_zaif, args=(product_pair,))
+    t_quoine = Mythread(target=get_bid_ask_quoine, args=(product_pair,))
+    t_bitbank = Mythread(target=get_bid_ask_bitbank, args=(product_pair,))
+    t_bitflyer = Mythread(target=get_bid_ask_bitflyer, args=(product_pair,))
 
-    get_bid_ask_quoinex(product_pair)
-
-    # print(time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime()))
-    fname1 = '/home/zhang/Templates/recording2.txt'
-    fname2 = '/home/zhang/Templates/recording4.txt'
-    fname3 = '/home/zhang/Templates/recording6.txt'
-
-    fid = open(fname1, 'w')
-    fid.close()
-    fid = open(fname2, 'w')
-    fid.close()
-    fid = open(fname3, 'w')
-    fid.close()
-    threadhold1 = 2
-    threadhold2 = 4
-    threadhold3 = 6
-    str_bitflyer = 'bitflyer'
-    str_bittrex = 'bittrex'
-    str_huobi = 'huobi'
-    str_bitbank = 'bitbank'
+    t_zaif.start()
+    t_quoine.start()
+    t_bitbank.start()
+    t_bitflyer.start()
 
     while 1:
-        results_bitflyer = get_bid_ask_bitflyer(product_pair)
-        results_bittrex = get_bid_ask_bittrex(product_pair)
-        results_bitbank = get_bid_ask_bitbank(product_pair)
-        results_huobi = get_bid_ask_huobi(product_pair)
-        compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold1, fname1)
-        compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold2, fname2)
-        compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold3, fname3)
-        time.sleep(10)
+        try:
+            t_zaif.run()
+            t_quoine.run()
+            t_bitbank.run()
+            t_bitflyer.run()
+            t_zaif.join(timeout=1)
+            t_quoine.join(timeout=1)
+            t_bitbank.join(timeout=1)
+            t_bitflyer.join(timeout=1)
+            print(t_zaif.get_result())
+            print(t_quoine.get_result())
+            print(t_bitbank.get_result())
+            print(t_bitflyer.get_result())
+        except Exception:
+            print('Error')
+        time.sleep(1)
+
+    #print_zaif()
+    #print_quoine()
+    #results_zaif = get_bid_ask_zaif(product_pair)
+    #results_bitflyer = get_bid_ask_bitflyer(product_pair)
+    #[rate, direction]=calculate_rate(results_zaif, results_bitflyer)
+
+    #try:
+    #    try_error(x)
+    #except:
+    #    print('not_value')
+    #product_pair = 'BTC_JPY'
+
+    #print(time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime()))
+    #fname1 = '/home/zhang/Templates/recording2.txt'
+    #fname2 = '/home/zhang/Templates/recording4.txt'
+    #fname3 = '/home/zhang/Templates/recording6.txt'
+
+    #fid = open(fname1,'w')
+    #fid.close()
+    #fid = open(fname2, 'w')
+    #fid.close()
+    #fid = open(fname3, 'w')
+    #fid.close()
+    #threadhold1 = 2
+    #threadhold2 = 4
+    #threadhold3 = 6
+    #str_bitflyer = 'bitflyer'
+    #str_bittrex = 'bittrex'
+    #str_huobi = 'huobi'
+    #str_bitbank = 'bitbank'
+
+    #while 1:
+        #results_bitflyer = get_bid_ask_bitflyer(product_pair)
+      #  results_bittrex = get_bid_ask_bittrex(product_pair)
+      #  results_bitbank = get_bid_ask_bitbank(product_pair)
+       # results_huobi = get_bid_ask_huobi(product_pair)
+        #compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold1, fname1)
+        #compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold2, fname2)
+        #compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold3, fname3)
+        #time.sleep(10)
