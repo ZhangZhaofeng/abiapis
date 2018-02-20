@@ -294,6 +294,7 @@ if __name__ == '__main__':
     price_sell_pair = [0]*6
 
     while 1:
+        arb_trigger = 0
         try:
             t_zaif.run()
             zaif_price[2] = 0
@@ -371,26 +372,28 @@ if __name__ == '__main__':
         arb[4], buymarket[4], sellmarket[4], price_buy_pair[4] , price_sell_pair[4] = calculate_rate(bitbank_price, quoine_price, 'bitbank', 'quoine')
         arb[5], buymarket[5], sellmarket[5], price_buy_pair[5] , price_sell_pair[5] = calculate_rate(quoine_price, bitflyer_price, 'quoine', 'bitflyer')
 
+
+        arb_str = ''
+        title_str = ''
         for i in range(0,6):
             if arb[i] > trade_threshold:
-                arb_str = 'arb: buy at:%s %f, sell at:%s %f, profit: %f'%(buymarket[i],price_buy_pair[i],sellmarket[i],price_sell_pair[i],arb[i])
-                print(arb_str)
+                arb_str = arb_str +  'arb: buy at:%s %f, sell at:%s %f, profit: %f\n'%(buymarket[i],price_buy_pair[i],sellmarket[i],price_sell_pair[i],arb[i])
+                title_str = title_str + 'b:%s s:%s '%(buymarket[i], sellmarket[i])
+                arb_trigger = 1
 
-                if mail_trigger == 0:
-                    mail_str = '%s\n%s'%(arb_str, formatdate(None, True, None))
-                    title_str = 'buy:%s sell:%s'%(buymarket[i], sellmarket[i])
-                    sender = SendMail(address, username, paswd)
-                    msg = MIMEText(mail_str)
-                    msg['Subject'] = title_str
-                    msg['From'] = username
-                    msg['To'] = address
-                    msg['Date'] = formatdate()
-                    sender.send_email(address, msg.as_string())
-                    print('send a mail to %s'%(address))
-                    mail_trigger = 1
+        print(arb_str)
+        if mail_trigger == 0 and arb_trigger == 1:
+            mail_str = '%s\n%s'%(arb_str, formatdate(None, True, None))
+            sender = SendMail(address, username, paswd)
+            msg = MIMEText(mail_str)
+            msg['Subject'] = title_str
+            msg['From'] = username
+            msg['To'] = address
+            msg['Date'] = formatdate()
+            sender.send_email(address, msg.as_string())
+            print('send a mail to %s'%(address))
+            mail_trigger = 1
 
-            #if arb[i] >-100 and arb[i] <100:
-            #    print('anit-arb: buy at %s, sell at %s, profit: %f' % (buymarket[i], sellmarket[i], arb[i]))
         time.sleep(1)
 
     #print_zaif()
