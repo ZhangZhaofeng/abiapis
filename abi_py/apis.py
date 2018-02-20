@@ -158,8 +158,8 @@ def get_bid_ask_quoinex(product_pair):
         # print(product['currency_pair_code'])
         if product['currency_pair_code'] == product_pair:
             id = int(product['id'])
-            bid = int(product['market_bid'])
-            ask = int(product['market_ask'])
+            bid = float(product['market_bid'])
+            ask = float(product['market_ask'])
     return [bid, ask]
 
 
