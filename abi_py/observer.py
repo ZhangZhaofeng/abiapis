@@ -211,13 +211,11 @@ def trading_fees(market):
     elif market == 'zaif':
         fees = -0.01
     elif market == 'quoine':
-        fees = 0.25
+        fees = 0.0
     else:
         fees = 0.0
 
     return(fees)
-
-
 
 def write_record(fname,rate,direction,str1,str2):
     fid = open(fname,'a')
@@ -227,7 +225,6 @@ def write_record(fname,rate,direction,str1,str2):
     else:
         buy = str2
         sell = str1
-
 
     time_str = time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime())
     write_str = 'buy: %s, sell: %s, profit: %f %% time: %s \n'%(buy,sell,rate,time_str)
@@ -395,46 +392,3 @@ if __name__ == '__main__':
             mail_trigger = 1
 
         time.sleep(1)
-
-    #print_zaif()
-    #print_quoine()
-    #results_zaif = get_bid_ask_zaif(product_pair)
-    #results_bitflyer = get_bid_ask_bitflyer(product_pair)
-    #[rate, direction]=calculate_rate(results_zaif, results_bitflyer)
-
-    #try:
-    #    try_error(x)
-    #except:
-    #    print('not_value')
-    #product_pair = 'BTC_JPY'
-
-    #print(time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime()))
-    #fname1 = '/home/zhang/Templates/recording2.txt'
-    #fname2 = '/home/zhang/Templates/recording4.txt'
-    #fname3 = '/home/zhang/Templates/recording6.txt'
-
-    #fid = open(fname1,'w')
-    #fid.close()
-    #fid = open(fname2, 'w')
-    #fid.close()
-    #fid = open(fname3, 'w')
-    #fid.close()
-    #threadhold1 = 2
-    #threadhold2 = 4
-    #threadhold3 = 6
-    #str_bitflyer = 'bitflyer'
-    #str_bittrex = 'bittrex'
-    #str_huobi = 'huobi'
-    #str_bitbank = 'bitbank'
-
-    #while 1:
-        #results_bitflyer = get_bid_ask_bitflyer(product_pair)
-      #  results_bittrex = get_bid_ask_bittrex(product_pair)
-      #  results_bitbank = get_bid_ask_bitbank(product_pair)
-       # results_huobi = get_bid_ask_huobi(product_pair)
-        #compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold1, fname1)
-        #compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold2, fname2)
-        #compute_and_record(results_bitflyer, results_bittrex, results_bitbank, results_huobi, threadhold3, fname3)
-        #time.sleep(10)
-
-
