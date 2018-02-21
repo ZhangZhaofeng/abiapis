@@ -337,6 +337,7 @@ if __name__ == '__main__':
 
     while 1:
         arb_trigger = 0
+        offset_trigger = 0
         for i in range(0,len_market):
             try:
                 t_market[i].run()
@@ -379,6 +380,7 @@ if __name__ == '__main__':
             offset[i], offset_buy[i], offset_sell[i] = calculate_offsetting(offset_price_pairs[i][0], offset_price_pairs[i][1], offset_pairs[i][0], offset_pairs[i][1])
             if offset[i] < setoff_threshold:
                 offset_str = offset_str + 'offset : buy at: %s %f, sell at: %s %f, cost: %f\n'%(offset_buy[i],offset_price_pairs[i][0][1], offset_sell[i], offset_price_pairs[i][1][0],offset[i] )
+                offset_trigger = 1
 
         arb_str = ''
         title_str = ''
@@ -389,7 +391,7 @@ if __name__ == '__main__':
                 arb_trigger = 1
 
         print(arb_str)
-        if mail_trigger == 0 and arb_trigger == 1:
+        if mail_trigger == 0 and (arb_trigger == 1 or offset_trigger == 1):
             mail_str = '%s\n%s\n%s'%(arb_str, offset_str, formatdate(None, True, None))
             sender = SendMail(address, username, paswd)
             msg = MIMEText(mail_str)
