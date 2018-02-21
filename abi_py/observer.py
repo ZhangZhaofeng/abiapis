@@ -200,6 +200,15 @@ def calculate_rate(result_bid_ask1,result_bid_ask2, market1 = '', market2 =''):
     return (arb_value, buy_market, sell_market, buy_price, sell_price)
 
 
+def calculate_offsetting(result_bid_ask1, result_bid_ask2, market1= '', market2=''):
+    # result_bid_ask1 = [sell , buy, status]
+    if result_bid_ask1[2] != 0 and result_bid_ask2[2] != 0: # if error occurred
+        return (1000000, '', '')
+
+    # buy at 1 sell at 2
+    offset_cost_b1s2 = result_bid_ask1[1] * (1 + trading_fees(market1) * 0.01) - result_bid_ask2[0] * (1 - trading_fees(market2) * 0.01)
+    return(offset_cost_b1s2, market1, market2)
+
 def trading_fees(market):
 
     if market == 'bittrex':
@@ -216,6 +225,21 @@ def trading_fees(market):
         fees = 0.0
 
     return(fees)
+
+def get_offset_pairs(orig_elements,ifreverse=False):
+
+    l_elements = len(orig_elements)
+    offset_pairs = []
+    flag = 1
+
+    for i in range(0,l_elements):
+        for j in range(flag,l_elements):
+            offset_pairs.append([orig_elements[i], orig_elements[j]])
+            if ifreverse:
+                offset_pairs.append([orig_elements[j], orig_elements[i]])
+        flag += 1
+    return(offset_pairs)
+
 
 def write_record(fname,rate,direction,str1,str2):
     fid = open(fname,'a')
@@ -255,22 +279,33 @@ class Mythread(threading.Thread):
 if __name__ == '__main__':
 
 # initial markets
-    trade_threshold = 1000
+    trade_threshold = 6000
+    setoff_threshold = 1000
     product_pair = 'BTC_JPY'
-    t_zaif = Mythread(target=get_bid_ask_zaif, args=(product_pair,))
-    t_quoine = Mythread(target=get_bid_ask_quoine, args=(product_pair,))
-    t_bitbank = Mythread(target=get_bid_ask_bitbank, args=(product_pair,))
-    t_bitflyer = Mythread(target=get_bid_ask_bitflyer, args=(product_pair,))
+    possible_market = [ 'zaif',  'quoine', 'bitbank', 'bitflyer']
+    len_market = len(possible_market)
+    market_price = []
+    for i in range(0, len_market):
+        market_price.append([-1,-1,0])
 
-    t_zaif.start()
-    t_quoine.start()
-    t_bitbank.start()
-    t_bitflyer.start()
+    t_market = []
+    t_market.append(Mythread(target=get_bid_ask_zaif, args=(product_pair,)))
+    t_market.append(Mythread(target=get_bid_ask_quoine, args=(product_pair,)))
+    t_market.append(Mythread(target=get_bid_ask_bitbank, args=(product_pair,)))
+    t_market.append(Mythread(target=get_bid_ask_bitflyer, args=(product_pair,)))
 
-    zaif_price = [-1, -1, 0] # 1st: bid 2nd: ask 3rd: status
-    quoine_price = [-1, -1, 0]
-    bitbank_price =[-1, -1, 0]
-    bitflyer_price = [-1, -1, 0]
+    for i in t_market:
+        i.start()
+
+    #t_zaif.start()
+    #t_quoine.start()
+    #t_bitbank.start()
+    #t_bitflyer.start()
+
+    #zaif_price = [-1, -1, 0] # 1st: bid 2nd: ask 3rd: status
+    #quoine_price = [-1, -1, 0]
+    #bitbank_price =[-1, -1, 0]
+    #bitflyer_price = [-1, -1, 0]
 
 # initial mail server
     address = 'goozzfgle@gmail.com' # change the reciver e-mail address to yours
@@ -284,91 +319,66 @@ if __name__ == '__main__':
     mail_timer = Mythread(target=mytimer, args=(20,))
     mail_timer.start()
 
-    arb = [0]*6
-    buymarket = ['']*6
-    sellmarket = ['']*6
-    price_buy_pair = [0]*6
-    price_sell_pair = [0]*6
+    offset_pairs = get_offset_pairs(possible_market,True)
+    offset_len = len(offset_pairs)
+    arb_pairs = get_offset_pairs(possible_market)
+    arb_len = len(arb_pairs)
+
+    offset = [0]*offset_len
+    offset_buy = ['']*offset_len
+    offset_sell = ['']*offset_len
+
+    arb = [0] * arb_len
+    buymarket = [''] * arb_len
+    sellmarket = [''] * arb_len
+    price_buy_pair = [0] * arb_len
+    price_sell_pair = [0] * arb_len
+
 
     while 1:
         arb_trigger = 0
-        try:
-            t_zaif.run()
-            zaif_price[2] = 0
-        except Exception:
-            print('Zaif Error 1@ %s\n'%formatdate())
-            zaif_price[2] = 1
-
-        try:
-            t_quoine.run()
-            quoine_price[2] = 0
-        except Exception:
-            print('Quoine Error 1@ %s\n'%formatdate())
-            quoine_price[2] = 1
-
-        try:
-            t_bitbank.run()
-            bitbank_price[2] = 0
-        except Exception:
-            print('Bitbank Error 1@ %s\n' % formatdate())
-            bitbank_price[2] = 1
-
-        try:
-            t_bitflyer.run()
-            bitflyer_price[2] = 0
-        except Exception:
-            print('Bitflyer Error 1@ %s\n' % formatdate())
-            bitflyer_price[2] = 1
-
-        if zaif_price[2] == 0:
+        for i in range(0,len_market):
             try:
-                t_zaif.join(1)
-                [bid,ask] = t_zaif.get_result()
-                zaif_price[0] = bid
-                zaif_price[1] = ask
+                t_market[i].run()
+                market_price[i][2] = 0
             except Exception:
-                print('Zaif Error 2@ %s\n' % formatdate())
-                zaif_price[2] = 2
-
-        if quoine_price[2] == 0:
-            try:
-                t_quoine.join(1)
-                [bid,ask] = t_quoine.get_result()
-                quoine_price[0] = bid
-                quoine_price[1] = ask
-            except Exception:
-                print('Quoine Error 2@ %s\n' % formatdate())
-                quoine_price[2] = 2
+                print('%s Error 1@ %s\n' %(possible_market[i],formatdate()))
+                market_price[i][2] = 1
 
 
-        if bitbank_price[2] == 0:
-            try:
-                t_bitbank.join(1)
-                [bid,ask] = t_bitbank.get_result()
-                bitbank_price[0] = bid
-                bitbank_price[1] = ask
-            except Exception:
-                print('Bitbank Error 2@ %s\n' % formatdate())
-                bitbank_price[2] = 2
-
-        if bitflyer_price[2] == 0:
-            try:
-                t_bitflyer.join(1)
-                [bid,ask] = t_bitflyer.get_result()
-                bitflyer_price[0] = bid
-                bitflyer_price[1] = ask
-            except Exception:
-                print('Bitflyer Error 2@ %s\n' % formatdate())
-                bitflyer_price[2] = 2
+        for i in range(0,len_market):
+            if market_price[i][2] == 0:
+                try:
+                    t_market[i].join(1)
+                    bid_ask = t_market[i].get_result()
+                    market_price[i][0] = bid_ask[0]
+                    market_price[i][1] = bid_ask[1]
+                except Exception:
+                    print('%s Error 2@ %s\n' % (possible_market[i], formatdate()))
+                    market_price[i][2] = 2
 
 
-        arb[0], buymarket[0], sellmarket[0], price_buy_pair[0] , price_sell_pair[0] = calculate_rate(zaif_price, bitflyer_price, 'zaif', 'bitflyer')
-        arb[1], buymarket[1], sellmarket[1], price_buy_pair[1] , price_sell_pair[1] = calculate_rate(zaif_price, bitbank_price, 'zaif', 'bitbank')
-        arb[2], buymarket[2], sellmarket[2], price_buy_pair[2] , price_sell_pair[2] = calculate_rate(zaif_price, quoine_price, 'zaif', 'quoine')
-        arb[3], buymarket[3], sellmarket[3], price_buy_pair[3] , price_sell_pair[3] = calculate_rate(bitbank_price, bitflyer_price, 'bitbank', 'bitflyer')
-        arb[4], buymarket[4], sellmarket[4], price_buy_pair[4] , price_sell_pair[4] = calculate_rate(bitbank_price, quoine_price, 'bitbank', 'quoine')
-        arb[5], buymarket[5], sellmarket[5], price_buy_pair[5] , price_sell_pair[5] = calculate_rate(quoine_price, bitflyer_price, 'quoine', 'bitflyer')
+        arb_price_pairs = get_offset_pairs(market_price)
+        offset_price_pairs = get_offset_pairs(market_price, True)
 
+        for i in range(0,arb_len):
+            arb[i], buymarket[i], sellmarket[i], price_buy_pair[i], price_sell_pair[i] = calculate_rate(arb_price_pairs[i][0],
+                                                                                                        arb_price_pairs[i][1],
+                                                                                                        arb_pairs[i][0],
+                                                                                                        arb_pairs[i][1])
+        #arb[0], buymarket[0], sellmarket[0], price_buy_pair[0] , price_sell_pair[0] = calculate_rate(zaif_price, bitflyer_price, 'zaif', 'bitflyer')
+        #arb[1], buymarket[1], sellmarket[1], price_buy_pair[1] , price_sell_pair[1] = calculate_rate(zaif_price, bitbank_price, 'zaif', 'bitbank')
+        #arb[2], buymarket[2], sellmarket[2], price_buy_pair[2] , price_sell_pair[2] = calculate_rate(zaif_price, quoine_price, 'zaif', 'quoine')
+        #arb[3], buymarket[3], sellmarket[3], price_buy_pair[3] , price_sell_pair[3] = calculate_rate(bitbank_price, bitflyer_price, 'bitbank', 'bitflyer')
+        #arb[4], buymarket[4], sellmarket[4], price_buy_pair[4] , price_sell_pair[4] = calculate_rate(bitbank_price, quoine_price, 'bitbank', 'quoine')
+        #arb[5], buymarket[5], sellmarket[5], price_buy_pair[5] , price_sell_pair[5] = calculate_rate(quoine_price, bitflyer_price, 'quoine', 'bitflyer')
+
+
+        offset_str = ''
+        for i in range(0,offset_len):
+            offset[i], offset_buy[i], offset_sell[i] = calculate_offsetting(offset_price_pairs[i][0], offset_price_pairs[i][1], offset_pairs[i][0], offset_pairs[i][1])
+            if offset[i] < setoff_threshold:
+                offset_str = offset_str + 'offset : buy at: %s %f, sell at: %s %f, cost: %f\n'%(offset_buy[i],offset_price_pairs[i][0][1], offset_sell[i], offset_price_pairs[i][1][0],offset[i] )
 
         arb_str = ''
         title_str = ''
@@ -380,7 +390,7 @@ if __name__ == '__main__':
 
         print(arb_str)
         if mail_trigger == 0 and arb_trigger == 1:
-            mail_str = '%s\n%s'%(arb_str, formatdate(None, True, None))
+            mail_str = '%s\n%s\n%s'%(arb_str, offset_str, formatdate(None, True, None))
             sender = SendMail(address, username, paswd)
             msg = MIMEText(mail_str)
             msg['Subject'] = title_str
