@@ -409,6 +409,9 @@ class Arbitrage:
         print("total_btc:", total_btc)
         print("total_jpy:", total_jpy)
 
+        if total_btc>0.682 or total_btc<0.678:
+            raise Exception
+
     def run_stragedy(self, banks_info):
         max_price_diff = 0.
         for buy_bank_info in banks_info:
