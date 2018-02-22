@@ -250,7 +250,7 @@ class Arbitrage:
               ""
               "")
         self.autotrade = AutoTrading()
-        self.DIFF_PRICE_SHELHOLD=-10000
+        self.DIFF_PRICE_SHELHOLD=1.0
 
     def arbitrage_once(self, buy_bankname, sell_bankname, amount=0.001):
         print("arbitrage_once")
@@ -298,7 +298,7 @@ class Arbitrage:
         if buy_bank == "zaif":
             self.autotrade.execute_trade(buy_bank, "buy", amount)
             self.autotrade.execute_trade(sell_bank, "sell", amount)
-        elif buy_bank == "zaif":
+        elif sell_bank == "zaif":
             self.autotrade.execute_trade(sell_bank, "sell", amount)
             self.autotrade.execute_trade(buy_bank, "buy", amount)
         else:
@@ -392,6 +392,7 @@ class Arbitrage:
 if __name__ == '__main__':
     print("Arb")
     mytrade = AutoTrading()
+    # mytrade.execute_trade("bitflyer","sell",0.004)
     # arb info example
     myarbitrage = Arbitrage()
 
