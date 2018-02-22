@@ -7,7 +7,7 @@ from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
 import apis
-import keysecret as ks
+import my_keysecret as ks
 import time
 import copy
 
@@ -153,7 +153,7 @@ class AutoTrading:
         [jpy_avai, btc_avai] = [0., 0.]
         [bid, ask] = [0., 0.]
         [buyable_btc, sell_btc] = [0., 0.]
-        margin_ratio=0.01
+        margin_ratio=0.05 # increasing the value to prevent trading failure
         if bankname == "quoinex":
             [jpy_avai, btc_avai] = self.get_asset_quoinex()
             [bid, ask] = apis.get_bid_ask_quoinex('BTC_JPY')
@@ -250,7 +250,7 @@ class Arbitrage:
               ""
               "")
         self.autotrade = AutoTrading()
-        self.DIFF_PRICE_SHELHOLD=10000
+        self.DIFF_PRICE_SHELHOLD=-10000
 
     def arbitrage_once(self, buy_bankname, sell_bankname, amount=0.001):
         print("arbitrage_once")
@@ -287,9 +287,9 @@ class Arbitrage:
         percent=plan.tradable_percent
         assert(percent>0.0 and percent<=1.0)
         amount=percent * min([plan.buybankinfo[4], plan.sellbankinfo[5]])
-        print(amount)
 
-        # amount=float(int(amount*1000)/1000)
+        amount=round(amount,3)
+        print(amount)
 
         if amount<0.001:
             print("Amount not enough")
@@ -330,8 +330,13 @@ class Arbitrage:
                 bitbankinfo = self.autotrade.get_bank_personal_info("bitbank")
                 banks_info = [zaifinfo, quoinexinfo, bitflyerinfo, bitbankinfo]
                 break
+            except ZaifServerException:
+                print("ZaifServerException while reading info, trying again.")
+                time.sleep(1)
+                continue
             except Exception:
                 print("Error.")
+                time.sleep(1)
                 continue
 
         return banks_info
@@ -347,6 +352,16 @@ class Arbitrage:
 
         print(" ")
 
+    def print_total_asset(self, banks_info):
+        total_btc=0.0
+        total_jpy=0.0
+        for each_bank_info in banks_info:
+            total_jpy+=each_bank_info[2]
+            total_btc+= each_bank_info[3]
+
+        print("total_btc:",total_btc)
+        print("total_jpy:", total_jpy)
+
 
     def run_stragedy(self, banks_info):
         max_price_diff=0.
@@ -359,11 +374,9 @@ class Arbitrage:
                         max_price_diff=price_diff
                         best_plan=copy.deepcopy(plan)
 
-        if max_price_diff>self.DIFF_PRICE_SHELHOLD:
+        if max_price_diff>self.DIFF_PRICE_SHELHOLD and max_price_diff!=0.:
             if self.execute_plan_trade(best_plan):
                 print("One stragedy executed")
-
-
 
     def run(self):
         print("Start!")
@@ -371,26 +384,16 @@ class Arbitrage:
         while 1:
             banks_info = self.get_all_bankinfo()
             self.print_all_plan_eval(banks_info)
-            self.run_stragedy(banks_info)
+            self.print_total_asset(banks_info)
+            # self.run_stragedy(banks_info)  #real-trading
             time.sleep(1)
 
 
 if __name__ == '__main__':
     print("Arb")
     mytrade = AutoTrading()
-    # print(mytrade.get_asset_bitflyer())
-
-    # trading example
-    # mytrade.execute_trade(bankname="bitflyer", action="buy", amount=0.01)
-
     # arb info example
     myarbitrage = Arbitrage()
-    # plan = Plan(_buybank="zaif", _sellbank="bitflyer", _tradable_percent=1.0)
-    # myarbitrage.get_plan_eval(plan)
-
-    # arb trading example
-    # if myarbitrage.arbitrage_once("quoinex", "zaif", 0.001) == True:
-    #     print("Successfully Executed!")
 
     myarbitrage.run()
 
