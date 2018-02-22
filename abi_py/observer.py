@@ -17,6 +17,7 @@ from email.utils import formatdate
 import smtplib
 import time
 import threading
+import memcache
 
 
 #import json
@@ -47,8 +48,11 @@ class SendMail:
 
     def send_email(self, toaddress ,mesage):
         self.connect_mail_server()
-        self.s.sendmail(self.from_add, toaddress, mesage)
-
+        try:
+            self.s.sendmail(self.from_add, toaddress, mesage)
+            print('Send a mail to %s' % (toaddress))
+        except smtplib.SMTPDataError:
+            print('Can not send a mail, maybe reach the daily limition')
 
 
 def print_quoine():
@@ -257,9 +261,11 @@ def write_record(fname,rate,direction,str1,str2):
 
 def mytimer(time_len):
     global mail_trigger
-    while 1:
-        time.sleep(time_len)
-        mail_trigger = 0
+    global send_a_mail
+    if send_a_mail == 0:
+        while 1:
+            time.sleep(time_len)
+            mail_trigger = 0
 
 class Mythread(threading.Thread):
     def __init__(self,target,args):
@@ -279,7 +285,7 @@ class Mythread(threading.Thread):
 if __name__ == '__main__':
 
 # initial markets
-    trade_threshold = 6000
+    trade_threshold = 1000
     setoff_threshold = 1000
     product_pair = 'BTC_JPY'
     possible_market = [ 'zaif',  'quoine', 'bitbank', 'bitflyer']
@@ -297,11 +303,6 @@ if __name__ == '__main__':
     for i in t_market:
         i.start()
 
-    #t_zaif.start()
-    #t_quoine.start()
-    #t_bitbank.start()
-    #t_bitflyer.start()
-
     #zaif_price = [-1, -1, 0] # 1st: bid 2nd: ask 3rd: status
     #quoine_price = [-1, -1, 0]
     #bitbank_price =[-1, -1, 0]
@@ -309,13 +310,12 @@ if __name__ == '__main__':
 
 # initial mail server
     address = 'goozzfgle@gmail.com' # change the reciver e-mail address to yours
-
-
     username = 'goozzfgle@gmail.com'
     paswd = 'google871225'
-
-
     mail_trigger = 0
+
+    send_a_mail = 1 # set 0 if to send a mail
+    memory_trigger = 0 # set 0 to store info in memory
     mail_timer = Mythread(target=mytimer, args=(20,))
     mail_timer.start()
 
@@ -333,6 +333,9 @@ if __name__ == '__main__':
     sellmarket = [''] * arb_len
     price_buy_pair = [0] * arb_len
     price_sell_pair = [0] * arb_len
+
+    if memory_trigger == 0:
+        shared = memcache.Client(['127.0.0.1:11211'],debug=0)
 
 
     while 1:
@@ -376,22 +379,40 @@ if __name__ == '__main__':
 
 
         offset_str = ''
+        offset_chance = []
         for i in range(0,offset_len):
             offset[i], offset_buy[i], offset_sell[i] = calculate_offsetting(offset_price_pairs[i][0], offset_price_pairs[i][1], offset_pairs[i][0], offset_pairs[i][1])
             if offset[i] < setoff_threshold:
                 offset_str = offset_str + 'offset : buy at: %s %f, sell at: %s %f, cost: %f\n'%(offset_buy[i],offset_price_pairs[i][0][1], offset_sell[i], offset_price_pairs[i][1][0],offset[i] )
                 offset_trigger = 1
+                offset_chance.append([offset_buy[i], offset_price_pairs[i][0][1], offset_sell[i], offset_price_pairs[i][1][0], offset[i]])
 
         arb_str = ''
         title_str = ''
+        arb_chance = []
         for i in range(0,6):
             if arb[i] > trade_threshold:
                 arb_str = arb_str +  'arb: buy at:%s %f, sell at:%s %f, profit: %f\n'%(buymarket[i],price_buy_pair[i],sellmarket[i],price_sell_pair[i],arb[i])
                 title_str = title_str + 'b:%s s:%s '%(buymarket[i], sellmarket[i])
                 arb_trigger = 1
+                arb_chance.append([buymarket[i], price_buy_pair[i], sellmarket[i], price_sell_pair[i], arb[i]])
+
+        if memory_trigger == 0:
+            shared.set('arb', arb)
+            shared.set('arb_chance', arb_chance)
+            shared.set('offset_chance', offset_chance)
+            shared.set('buymarket', buymarket)
+            shared.set('sellmarket', sellmarket)
+            shared.set('price_buy_pair', price_buy_pair)
+            shared.set('price_sell_pair', price_sell_pair)
+            shared.set('offset',offset)
+            shared.set('offset_buy', offset_buy)
+            shared.set('offset_sell', offset_sell)
+
+
 
         print(arb_str)
-        if mail_trigger == 0 and (arb_trigger == 1 or offset_trigger == 1):
+        if send_a_mail == 0 and mail_trigger == 0 and (arb_trigger == 1 or offset_trigger == 1):
             mail_str = '%s\n%s\n%s'%(arb_str, offset_str, formatdate(None, True, None))
             sender = SendMail(address, username, paswd)
             msg = MIMEText(mail_str)
@@ -400,7 +421,6 @@ if __name__ == '__main__':
             msg['To'] = address
             msg['Date'] = formatdate()
             sender.send_email(address, msg.as_string())
-            print('send a mail to %s'%(address))
             mail_trigger = 1
 
         time.sleep(1)
