@@ -229,7 +229,7 @@ class MyArbitrage(private.Arbitrage):
 
     # find the largest buy sell able amount
     def plan_max_mount(self, buy_asset, sell_asset , buy, sell, market_price, market_list):
-        floating_mount = 0.95
+        floating_mount = 0.7
         max_amount = 0.0
         buy_index = market_list.index(buy)
         #sell_index = market_list.index(sell)
@@ -257,6 +257,8 @@ class MyArbitrage(private.Arbitrage):
                 if amount == -1.0:
                     amount = self.plan_max_mount(result1, result2, buy, sell, market_price, market_list)
                 amount = offset_mount * amount
+                amount = float('%.3f'%amount)
+                print('Amount is %f'%(amount))
                 break
             except Exception:
                 print("Exception catched while judging asset, trying again.")
@@ -266,7 +268,7 @@ class MyArbitrage(private.Arbitrage):
             return 1
 
 
-        result = self.arb_trade(self, buy, sell, amount, False)
+        result = self.arb_trade(buy, sell, amount, False)
         #result = 0
         return result
         # return 0 succeed
@@ -315,7 +317,12 @@ if __name__ == '__main__':
     arb_poss_label = [0]*pairs_number
     setoff_poss_label = [0]*pairs_number
 
-    check_balance = 0
+    start_set_init_setoff = 0
+    if start_set_init_setoff:
+        # zaif-bitbank bitbank-zaif zaif-bitflyer bitflyer-zaif bitbank-bitflyer bitflyer-bitbank
+        arb_label=[2,2,0,1,2,2]
+
+    check_balance = 1
     if check_balance:
         autotrading.calculate_captial(possible_market)
         autotrading.calculate_all_captial()
@@ -364,7 +371,7 @@ if __name__ == '__main__':
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
                 print('It is good time to preform arb to buy @ %s and sell @ %s. Profit is %f '%(trading_pairs[i][0],trading_pairs[i][1],-cost ))
                 #TODO banzhuan
-                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.01)
+                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.05)
                 # for test
                 if arb_result == 0:
                     print('Arb succeed, sleep 5 seconds')
@@ -379,8 +386,11 @@ if __name__ == '__main__':
                         print('Change to offset mode')
                         #print(setoff_poss_label)
                         #print(arb_label)
+                    else:
+                        raise Exception('Failed! because %d'%(arb_result))
                     print('Arb failed code %d'%arb_result)
             break
+
 
 # TODO add judje largest setoff pairs
 
@@ -388,7 +398,7 @@ if __name__ == '__main__':
             # if there is a pair need to offset and it is possible, do it
             if setoff_poss_label[i] == 1 and arb_label[i] == 1:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
-                print('It is good time to preform offset to buy @ %s and sell @ %s. Cost is' % (
+                print('It is good time to preform offset to buy @ %s and sell @ %s. Cost is %f' % (
                 trading_pairs[i][0], trading_pairs[i][1],cost))
                 arb_result = arbobject.offset_trade(trading_pairs[i][0], trading_pairs[i][1], market_price, market_list, amount = -1.0)
                 if arb_result == 0:
@@ -398,8 +408,11 @@ if __name__ == '__main__':
                         arb_label[i + 1] = 2
                     else:
                         arb_label[i - 1] = 2
-                else:
+                    print(arb_label)
+                elif arb_result == 2:
                     print('Offset failed code %d'%arb_result)
+                else:
+                    raise Exception('Failed! because %d' % (arb_result))
                 break
             elif setoff_poss_label[i] == 0 and arb_label[i] == 1:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
@@ -412,3 +425,8 @@ if __name__ == '__main__':
                 #TODO pingcang
             #    if succeed(pingcang):
             #    arb_label[i] = 1
+
+
+
+
+        #arb_result = arbobject.arb_trade('bitbank', 'zaif', amount=0.1)
