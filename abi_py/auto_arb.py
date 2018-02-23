@@ -15,34 +15,39 @@ import time
 
 
 class MyAutoTrading(private.AutoTrading):
-    def __init__(self):
+    currency1 = [0.0] * 4
+    currency2 = [0.0] * 4
+    allcurrency1 = 0
+    allcurrency2 = 0
+    initlize = [0] * 4
 
-        initlize=[0]*4
+
+    def __init__(self):
 
         print("Initializing API")
         try:
             self.zaif_api = ZaifTradeApi(key=str(ks.zaif_api), secret=str(ks.zaif_secret))
         except Exception:
             print('Cant initialize Zaif API')
-            initlize[0] = 1
+            self.initlize[0] = 1
         try:
             self.quoinex_api = client.Quoinex(api_token_id=str(ks.quoinex_api), api_secret=(ks.quoinex_secret))
         except Exception:
             print('Cant initialize Quoinex API')
-            initlize[1] = 1
+            self.initlize[1] = 1
 
         try:
             self.bitbank_api = private_api.bitbankcc_private(api_key=str(ks.bitbank_api),
                                                              api_secret=str(ks.bitbank_secret))
         except Exception:
             print('Cant initialize Bitbank API')
-            initlize[2] = 1
+            self.initlize[2] = 1
 
         try:
             self.bitflyer_api = pybitflyer.API(api_key=str(ks.bitflyer_api), api_secret=str(ks.bitflyer_secret))
         except Exception:
             print('Cant initialize bitflyer API')
-            initlize[3] = 1
+            self.initlize[3] = 1
 
     def execute_trade(self, bankname, action, amount):
         print("execute_trade")
@@ -74,7 +79,32 @@ class MyAutoTrading(private.AutoTrading):
                 continue
         return 1
 
+    def calculate_captial(self, possible_market):
+        for i in possible_market:
+            if i == 'zaif':
+                temp = self.get_asset_zaif()
+                self.currency1[0] = temp[0]
+                self.currency2[0] = temp[1]
+            elif i== 'quoinex':
+                temp = self.get_asset_quoinex()
+                self.currency1[1] = temp[0]
+                self.currency2[1] = temp[1]
+            elif i == 'bitbank':
+                temp = self.get_asset_bitbank()
+                self.currency1[2] = temp[0]
+                self.currency2[2] = temp[1]
+            elif i == 'bitflyer':
+                temp = self.get_asset_bitflyer()
+                self.currency1[3] = temp[0]
+                self.currency2[3] = temp[1]
 
+    def calculate_all_captial(self):
+        len_market = len(self.currency1)
+        self.allcurrency1 = 0.0
+        self.allcurrency2 = 0.0
+        for i in range(0,len_market):
+            self.allcurrency1 += self.currency1[i]
+            self.allcurrency2 += self.currency2[i]
 
 class MyArbitrage(private.Arbitrage):
     def __init__(self):
@@ -207,10 +237,13 @@ def find_market_index(buy_sell_pairs, trading_pairs):
 
 
 
+
+
 if __name__ == '__main__':
     autotrading = MyAutoTrading()
     arbobject = MyArbitrage()
-    possible_market = ['zaif', 'bitbank']
+    possible_market = ['zaif', 'bitbank', 'bitflyer']
+
     trading_pairs = observer.get_offset_pairs(possible_market, True)
     pairs_number = len(trading_pairs)
 
@@ -219,17 +252,22 @@ if __name__ == '__main__':
     arb_poss_label = [0]*pairs_number
     setoff_poss_label = [0]*pairs_number
 
-    #bitbank1 = autotrading.get_asset_bitbank()
+    check_balance =1
+    if check_balance:
+        autotrading.calculate_captial(possible_market)
+        autotrading.calculate_all_captial()
+        print(autotrading.currency1)
+        print(autotrading.currency2)
+        print(autotrading.allcurrency1)
+        print(autotrading.allcurrency2)
 
 
-
-    #print(bitbank1)
     #zaif2 = autotrading.get_asset_zaif()
-    #print(zaif2)
 
     shared = memcache.Client(['127.0.0.1:11211'], debug=0)
 
-    if_arb = 1
+
+    if_arb = 0
 
     while if_arb:
         arb_chance = shared.get('arb_chance')
@@ -260,9 +298,10 @@ if __name__ == '__main__':
             if arb_poss_label[i]==1 and (arb_label[i] == 2 or arb_label[i] == 1):
                 print('It is good time to preform arb to buy @ %s and sell @ %s '%(trading_pairs[i][0],trading_pairs[i][1] ))
                 #TODO banzhuan
-                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.001)
+                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.02)
                 if arb_result == 0:
-                    print('Arb succeed')
+                    print('Arb succeed, sleep 5 seconds')
+                    time.sleep(5)
                 else:
                     print('Arb failed code %d'%arb_result)
                     break
