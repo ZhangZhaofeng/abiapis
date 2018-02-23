@@ -284,12 +284,13 @@ class Plan:
 
 
 class Arbitrage:
-    def __init__(self):
+    def __init__(self, _banks_list):
         print("Initializing Arbitrage"
               ""
               "")
         self.autotrade = AutoTrading()
         self.DIFF_PRICE_SHELHOLD = 1000.
+        self.banks_list=_banks_list
 
     def arbitrage_once(self, buy_bankname, sell_bankname, amount=0.001):
         print("arbitrage_once")
@@ -375,11 +376,11 @@ class Arbitrage:
         banks_info = []
         while 1:
             try:
-                zaifinfo = self.autotrade.get_bank_personal_info("zaif")
-                quoinexinfo = self.autotrade.get_bank_personal_info("quoinex")
-                bitflyerinfo = self.autotrade.get_bank_personal_info("bitflyer")
-                bitbankinfo = self.autotrade.get_bank_personal_info("bitbank")
-                banks_info = [zaifinfo, quoinexinfo, bitflyerinfo, bitbankinfo]
+                banks_info = []
+                for bank in self.banks_list:
+                    bank_info=copy.deepcopy(self.autotrade.get_bank_personal_info(bank))
+                    banks_info.append(bank_info)
+
                 break
             except ZaifServerException:
                 print("ZaifServerException while reading info, trying again.")
@@ -461,8 +462,10 @@ if __name__ == '__main__':
     # print(mytrade.get_asset_quoinex())
     # mytrade.execute_trade("quoinex", "buy", 0.001)
     # arb info example
-    myarbitrage = Arbitrage()
+    # banklist=["zaif", "quoinex","bitflyer","bitbank"]
+    banklist = ["quoinex", "bitflyer", "bitbank"]
+    myarbitrage = Arbitrage(banklist)
 
     myarbitrage.run()
 
-    # myarbitrage.arbitrage_once("zaif","quoinex",0.045)
+    # myarbitrage.arbitrage_once("zaif","quoinex",0.53)
