@@ -1,6 +1,4 @@
 
-#!/usr/bin/python3
-
 
 from tradingapis.bittrex_api import bittrex
 from tradingapis.huobi_api import huobi
@@ -405,9 +403,10 @@ if __name__ == '__main__':
             shared.set('sellmarket', sellmarket)
             shared.set('price_buy_pair', price_buy_pair)
             shared.set('price_sell_pair', price_sell_pair)
-            shared.set('offset',offset)
+            shared.set('offset', offset)
             shared.set('offset_buy', offset_buy)
             shared.set('offset_sell', offset_sell)
+            shared.set('offset_pairs', offset_pairs)
             shared.set('market_price', market_price)
             shared.set('market_list', possible_market)
 
