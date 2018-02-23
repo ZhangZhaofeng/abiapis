@@ -291,6 +291,12 @@ def find_market_index(buy_sell_pairs, trading_pairs):
     return -1
 
 
+def get_arb_cost(offset, offset_pairs, buy, sell):
+    for i in range(0,len(offset_pairs)):
+        if offset_pairs[i] == [buy, sell]:
+            return offset[i]
+    return -1
+
 
 
 
@@ -309,11 +315,7 @@ if __name__ == '__main__':
     arb_poss_label = [0]*pairs_number
     setoff_poss_label = [0]*pairs_number
 
-
-
-
-
-    check_balance = 1
+    check_balance = 0
     if check_balance:
         autotrading.calculate_captial(possible_market)
         autotrading.calculate_all_captial()
@@ -321,7 +323,6 @@ if __name__ == '__main__':
         print(autotrading.currency2)
         print(autotrading.allcurrency1)
         print(autotrading.allcurrency2)
-
 
     #zaif2 = autotrading.get_asset_zaif()
 
@@ -331,15 +332,15 @@ if __name__ == '__main__':
     market_list = shared.get('market_list')
     print(market_list)
 
-    if_arb = 0
+    if_arb = 1
 
     while if_arb:
         arb_chance = shared.get('arb_chance')
         offset_chance = shared.get('offset_chance')
-
+        all_offsets = shared.get('offset')
+        all_offset_pairs = shared.get('offset_pairs')
         #print(arb_chance)
         #print(offset_chance)
-
     # find arb chance
         for i in arb_chance:
             buy_sell_pairs = [i[0],i[2]]
@@ -347,7 +348,6 @@ if __name__ == '__main__':
             if index > -1:
                 arb_poss_label[index] = 1
         #print(arb_poss_label)
-
     # find offset chance
         for j in offset_chance:
             buy_sell_pairs = [j[0], j[2]]
@@ -356,17 +356,18 @@ if __name__ == '__main__':
                 setoff_poss_label[index] = 1
         #print(setoff_poss_label)
 
+#TODO add judje largest arb pairs
 
         for i in range(0,pairs_number):
             # if there is profit in this arb and we can arb, do it after that mark it as offsetable
             if arb_poss_label[i]==1 and arb_label[i] == 2:
-                print('It is good time to preform arb to buy @ %s and sell @ %s '%(trading_pairs[i][0],trading_pairs[i][1] ))
+                cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
+                print('It is good time to preform arb to buy @ %s and sell @ %s. Profit is %f '%(trading_pairs[i][0],trading_pairs[i][1],-cost ))
                 #TODO banzhuan
-                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.001)
+                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.01)
                 # for test
                 if arb_result == 0:
                     print('Arb succeed, sleep 5 seconds')
-                    time.sleep(5)
                 else:
                     # if no money find a chance to offset
                     if arb_result == 2:
@@ -381,27 +382,32 @@ if __name__ == '__main__':
                     print('Arb failed code %d'%arb_result)
             break
 
+# TODO add judje largest setoff pairs
+
         for i in range(0, pairs_number):
             # if there is a pair need to offset and it is possible, do it
             if setoff_poss_label[i] == 1 and arb_label[i] == 1:
-                print('It is good time to preform offset to buy @ %s and sell @ %s ' % (
-                trading_pairs[i][0], trading_pairs[i][1]))
+                cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
+                print('It is good time to preform offset to buy @ %s and sell @ %s. Cost is' % (
+                trading_pairs[i][0], trading_pairs[i][1],cost))
                 arb_result = arbobject.offset_trade(trading_pairs[i][0], trading_pairs[i][1], market_price, market_list, amount = -1.0)
                 if arb_result == 0:
-                    print('Offset succeed set pairs to trade able statue')
+                    print('Offset succeed. Set pairs to begin')
                     arb_label[i] = 2
                     if (i % 2) == 0:
                         arb_label[i + 1] = 2
                     else:
                         arb_label[i - 1] = 2
                 else:
-                    print(arb_result)
+                    print('Offset failed code %d'%arb_result)
+                break
             elif setoff_poss_label[i] == 0 and arb_label[i] == 1:
-                print('We need offset to buy @ %s and sell @ %s, But the cost is too high.' % (
-                    trading_pairs[i][0], trading_pairs[i][1]))
-            break
+                cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
+                print('We need offset to buy @ %s and sell @ %s, But the cost is too high. The cost is %f' % (
+                    trading_pairs[i][0], trading_pairs[i][1], cost))
 
         time.sleep(5)
+
             #if setoff_poss_label[i] == 1 and arb_label[i] == 0:
                 #TODO pingcang
             #    if succeed(pingcang):
