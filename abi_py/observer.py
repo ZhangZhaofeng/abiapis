@@ -285,10 +285,10 @@ class Mythread(threading.Thread):
 if __name__ == '__main__':
 
 # initial markets
-    trade_threshold = 1000
+    trade_threshold = 6000
     setoff_threshold = 1000
     product_pair = 'BTC_JPY'
-    possible_market = [ 'zaif',  'quoine', 'bitbank', 'bitflyer']
+    possible_market = [ 'zaif',  'quoinex', 'bitbank', 'bitflyer']
     len_market = len(possible_market)
     market_price = []
     for i in range(0, len_market):
@@ -408,6 +408,8 @@ if __name__ == '__main__':
             shared.set('offset',offset)
             shared.set('offset_buy', offset_buy)
             shared.set('offset_sell', offset_sell)
+            shared.set('market_price', market_price)
+            shared.set('market_list', possible_market)
 
 
 
