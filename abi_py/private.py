@@ -161,17 +161,29 @@ class AutoTrading:
         return ([jpy_avai, btc_avai])
 
     def get_asset_from_bank(self, bankname):
-        if bankname == "zaif":
-            [jpy_avai, btc_avai] = self.get_asset_zaif()
-        elif bankname == "quoinex":
-            [jpy_avai, btc_avai] = self.get_asset_quoinex()
-        elif bankname == "bitflyer":
-            [jpy_avai, btc_avai] = self.get_asset_bitflyer()
-        elif bankname == "bitbank":
-            [jpy_avai, btc_avai] = self.get_asset_bitbank()
-        else:
-            print("Bankname error")
-            [jpy_avai, btc_avai] = [0., 0.]
+        while 1:
+            try:
+                if bankname == "zaif":
+                    [jpy_avai, btc_avai] = self.get_asset_zaif()
+                elif bankname == "quoinex":
+                    [jpy_avai, btc_avai] = self.get_asset_quoinex()
+                elif bankname == "bitflyer":
+                    [jpy_avai, btc_avai] = self.get_asset_bitflyer()
+                elif bankname == "bitbank":
+                    [jpy_avai, btc_avai] = self.get_asset_bitbank()
+                else:
+                    print("Bankname error")
+                    [jpy_avai, btc_avai] = [0., 0.]
+                break
+            except ZaifApiError:
+                print("ZaifApiError catched. Retrying")
+                continue
+            except ZaifServerException:
+                print("ZaifServerException catched. Retrying")
+                continue
+            except Exception:
+                print("Other exceptions catched. Retrying")
+                continue
         return [jpy_avai, btc_avai]
 
     def judge_asset_change(self, bankname, original_asset, trade_type):
@@ -290,12 +302,12 @@ class Plan:
 
 
 class Arbitrage:
-    def __init__(self, _banks_list):
+    def __init__(self, _banks_list=[]):
         print("Initializing Arbitrage"
               ""
               "")
         self.autotrade = AutoTrading()
-        self.DIFF_PRICE_SHELHOLD = 1500.
+        self.DIFF_PRICE_SHELHOLD = 2000.
         self.banks_list = _banks_list
 
     def arbitrage_once(self, buy_bankname, sell_bankname, amount=0.001):
@@ -435,11 +447,9 @@ class Arbitrage:
         banks_info = []
         while 1:
             try:
-                banks_info = []
                 for bank in self.banks_list:
                     bank_info = copy.deepcopy(self.autotrade.get_bank_personal_info(bank))
                     banks_info.append(bank_info)
-
                 break
             except ZaifServerException:
                 print("ZaifServerException while reading info, trying again.")
@@ -453,6 +463,7 @@ class Arbitrage:
         return banks_info
 
     def print_all_plan_eval(self, banks_info):
+        print("==============All Arb Plans==============")
         for buy_bank_info in banks_info:
             for sell_bank_info in banks_info:
                 if buy_bank_info != sell_bank_info:
@@ -465,14 +476,16 @@ class Arbitrage:
     def print_total_asset(self, banks_info):
         total_btc = 0.0
         total_jpy = 0.0
+        print("============Asset in Each Bank===========")
         for each_bank_info in banks_info:
             print(each_bank_info)
             total_jpy += each_bank_info[2]
             total_btc += each_bank_info[3]
-
+        print("==============My Total Asset=============")
         print("total_btc:", total_btc)
         print("total_jpy:", total_jpy)
 
+        #When asset is abnormal terminate the program
         if total_btc > 0.685 or total_btc < 0.668:
             print("Asset abnormal!")
             raise Exception
