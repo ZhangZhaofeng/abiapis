@@ -7,7 +7,7 @@ from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
 import apis
-import my_keysecret as ks
+import my_secret as ks
 import time
 import copy
 
@@ -75,7 +75,8 @@ class AutoTrading:
         last_price = round(zaifpublic.last_price(currency_pair='btc_jpy')["last_price"], 1)
 
         if type == "BUY" or type == "buy":
-            price = int(last_price * (1 + margin_ratio))
+            price = int(round(last_price * (1 + margin_ratio) / 10, 0) * 10)
+            print(price)
             order = self.zaif_api.trade(
                 currency_pair='btc_jpy',
                 action='bid',
@@ -83,7 +84,8 @@ class AutoTrading:
                 amount=amount
             )
         elif type == "SELL" or type == "sell":
-            price = int(last_price * (1 - margin_ratio))
+            price = int(round(last_price * (1 - margin_ratio) / 10, 0) * 10)
+            print(price)
             order = self.zaif_api.trade(
                 currency_pair='btc_jpy',
                 action='ask',
@@ -159,17 +161,29 @@ class AutoTrading:
         return ([jpy_avai, btc_avai])
 
     def get_asset_from_bank(self, bankname):
-        if bankname == "zaif":
-            [jpy_avai, btc_avai] = self.get_asset_zaif()
-        elif bankname == "quoinex":
-            [jpy_avai, btc_avai] = self.get_asset_quoinex()
-        elif bankname == "bitflyer":
-            [jpy_avai, btc_avai] = self.get_asset_bitflyer()
-        elif bankname == "bitbank":
-            [jpy_avai, btc_avai] = self.get_asset_bitbank()
-        else:
-            print("Bankname error")
-            [jpy_avai, btc_avai] = [0., 0.]
+        while 1:
+            try:
+                if bankname == "zaif":
+                    [jpy_avai, btc_avai] = self.get_asset_zaif()
+                elif bankname == "quoinex":
+                    [jpy_avai, btc_avai] = self.get_asset_quoinex()
+                elif bankname == "bitflyer":
+                    [jpy_avai, btc_avai] = self.get_asset_bitflyer()
+                elif bankname == "bitbank":
+                    [jpy_avai, btc_avai] = self.get_asset_bitbank()
+                else:
+                    print("Bankname error")
+                    [jpy_avai, btc_avai] = [0., 0.]
+                break
+            except ZaifApiError:
+                print("ZaifApiError catched. Retrying")
+                continue
+            except ZaifServerException:
+                print("ZaifServerException catched. Retrying")
+                continue
+            except Exception:
+                print("Other exceptions catched. Retrying")
+                continue
         return [jpy_avai, btc_avai]
 
     def judge_asset_change(self, bankname, original_asset, trade_type):
@@ -177,10 +191,10 @@ class AutoTrading:
         [original_jpy_avai, original_btc_avai] = original_asset
 
         if trade_type == "buy" or trade_type == "BUY":
-            if current_jpy_avai < original_jpy_avai:
+            if current_jpy_avai < original_jpy_avai - 3.0:
                 return True
         elif trade_type == "sell" or trade_type == "SELL":
-            if current_btc_avai < original_btc_avai:
+            if current_btc_avai < original_btc_avai - 0.0001:
                 return True
 
         return False
@@ -236,10 +250,14 @@ class AutoTrading:
                 print("ZaifServerException catched while trading, trying again.")
                 time.sleep(0.5)
                 continue
+            except ZaifApiError:
+                print("ZaifApiError catched while trading, trying again.")
+                time.sleep(0.5)
             except Exception:
                 print("Other exception catched while trading, trying again.")
                 time.sleep(0.5)
                 continue
+
         return False
 
     def judge_tradable(self, bankname, action, amount):
@@ -284,12 +302,13 @@ class Plan:
 
 
 class Arbitrage:
-    def __init__(self):
+    def __init__(self, _banks_list=[]):
         print("Initializing Arbitrage"
               ""
               "")
         self.autotrade = AutoTrading()
-        self.DIFF_PRICE_SHELHOLD = 1000.
+        self.DIFF_PRICE_SHELHOLD = 2000.
+        self.banks_list = _banks_list
 
     def arbitrage_once(self, buy_bankname, sell_bankname, amount=0.001):
         print("arbitrage_once")
@@ -320,14 +339,21 @@ class Arbitrage:
         return True
 
     def execute_plan_trade(self, plan):
+        print("********************************************************")
+        print("********************Plan Executing**********************")
+        print("********************************************************")
         buy_bank = plan.buybankinfo[6]
         sell_bank = plan.sellbankinfo[6]
         print("execute_plan_trade. BUY:", buy_bank, "SELL:", sell_bank)
         percent = plan.tradable_percent
         assert (percent > 0.0 and percent <= 1.0)
         amount = percent * min([plan.buybankinfo[4], plan.sellbankinfo[5]])
+        amount = round(amount - 0.001, 3)
 
-        amount = round(amount, 3)-0.002
+        # saturation
+        if amount > 0.15:
+            amount = 0.15
+
         print(amount)
 
         if amount < 0.001:
@@ -344,19 +370,65 @@ class Arbitrage:
             if self.autotrade.execute_trade(buy_bank, "buy", amount):
                 self.autotrade.execute_trade(sell_bank, "sell", amount)
 
+        print("********************************************************")
+        print("********************Plan Executed***********************")
+        print("********************************************************")
+
         return True
 
-    def judge_arb_order_success(self, plan):
-        buy_bank = plan.buybankinfo[6]
-        sell_bank = plan.sellbankinfo[6]
+    def judge_arb_order_success_and_backup(self, plan):
+        print("************Waiting 2sec for judging asset**************")
+        time.sleep(2)
+        buy_bankname = plan.buybankinfo[6]
+        sell_bankname = plan.sellbankinfo[6]
+        amount = plan.tradable_percent * min([plan.buybankinfo[4], plan.sellbankinfo[5]])
+        amount = round(amount - 0.001, 3)
 
         original_buybank_asset = [plan.buybankinfo[2], plan.buybankinfo[3]]
         original_sellbank_asset = [plan.sellbankinfo[2], plan.sellbankinfo[3]]
 
-        if self.autotrade.judge_asset_change(buy_bank, original_buybank_asset, "buy"):
-            print(buy_bank, "buy order verified")
-        if self.autotrade.judge_asset_change(sell_bank, original_sellbank_asset, "sell"):
-            print(sell_bank, "sell order verified")
+        result_buy = self.autotrade.judge_asset_change(buy_bankname, original_buybank_asset, "buy")
+        result_sell = self.autotrade.judge_asset_change(sell_bankname, original_sellbank_asset, "sell")
+
+        if result_buy and result_sell:
+            print(buy_bankname, "buy order verified")
+            print(sell_bankname, "sell order verified")
+            return True
+        elif result_buy and not (result_sell):
+            print(buy_bankname, "buy order verified")
+            print(sell_bankname, "sell retrying")
+            self.autotrade.execute_trade(sell_bankname, "sell", amount)
+            time.sleep(2)
+            result_sell = self.autotrade.judge_asset_change(sell_bankname, original_sellbank_asset, "sell")
+            if result_sell:
+                print(sell_bankname, "sell order verified")
+                return True
+            else:
+                print(sell_bankname, "sell order failed again")
+                print("Executing selling back in orignal buyside")
+                self.autotrade.execute_trade(buy_bankname, "sell", amount)
+                print("Sell back ordered")
+                # do not judge sell back success, because total_asset will do that
+                return True
+        elif not (result_buy) and result_sell:
+            print(buy_bankname, "sell order verified")
+            print(sell_bankname, "buy retrying")
+            self.autotrade.execute_trade(buy_bankname, "buy", amount)
+            time.sleep(2)
+            result_buy = self.autotrade.judge_asset_change(buy_bankname, original_buybank_asset, "buy")
+            if result_buy:
+                print(buy_bankname, "buy order verified")
+                return True
+            else:
+                print(buy_bankname, "buy order failed again")
+                print("Executing buying back in orignal sellside")
+                self.autotrade.execute_trade(sell_bankname, "buy", amount)
+                print("Buy back ordered")
+                # do not judge buy back success, because total_asset will do that
+                return True
+        else:
+            print("Warning: both sides failed, total asset has no change.")
+            return True
 
     def get_plan_eval(self, plan):
         buybankinfo = plan.buybankinfo
@@ -375,11 +447,9 @@ class Arbitrage:
         banks_info = []
         while 1:
             try:
-                zaifinfo = self.autotrade.get_bank_personal_info("zaif")
-                quoinexinfo = self.autotrade.get_bank_personal_info("quoinex")
-                bitflyerinfo = self.autotrade.get_bank_personal_info("bitflyer")
-                bitbankinfo = self.autotrade.get_bank_personal_info("bitbank")
-                banks_info = [zaifinfo, quoinexinfo, bitflyerinfo, bitbankinfo]
+                for bank in self.banks_list:
+                    bank_info = copy.deepcopy(self.autotrade.get_bank_personal_info(bank))
+                    banks_info.append(bank_info)
                 break
             except ZaifServerException:
                 print("ZaifServerException while reading info, trying again.")
@@ -393,6 +463,7 @@ class Arbitrage:
         return banks_info
 
     def print_all_plan_eval(self, banks_info):
+        print("==============All Arb Plans==============")
         for buy_bank_info in banks_info:
             for sell_bank_info in banks_info:
                 if buy_bank_info != sell_bank_info:
@@ -405,32 +476,35 @@ class Arbitrage:
     def print_total_asset(self, banks_info):
         total_btc = 0.0
         total_jpy = 0.0
+        print("============Asset in Each Bank===========")
         for each_bank_info in banks_info:
             print(each_bank_info)
             total_jpy += each_bank_info[2]
             total_btc += each_bank_info[3]
-
+        print("==============My Total Asset=============")
         print("total_btc:", total_btc)
         print("total_jpy:", total_jpy)
 
-        # if total_btc>0.682 or total_btc<0.678:
-        #     raise Exception
-
+        #When asset is abnormal terminate the program
+        if total_btc > 0.685 or total_btc < 0.668:
+            print("Asset abnormal!")
+            raise Exception
 
     def run_stragedy(self, banks_info):
         max_price_diff = 0.
         for buy_bank_info in banks_info:
             for sell_bank_info in banks_info:
                 if buy_bank_info != sell_bank_info:
-                    plan = Plan(buy_bank_info, sell_bank_info, 1.0)
+                    plan = Plan(buy_bank_info, sell_bank_info, 0.98)
                     [price_diff, tradable_btc, estm_profit] = self.get_plan_eval(plan)
-                    if price_diff > max_price_diff and tradable_btc * plan.tradable_percent > 0.001:
+                    if price_diff > max_price_diff and (tradable_btc - 0.001) * plan.tradable_percent > 0.005:
                         max_price_diff = price_diff
                         best_plan = copy.deepcopy(plan)
 
         if max_price_diff > self.DIFF_PRICE_SHELHOLD and max_price_diff != 0.:
             if self.execute_plan_trade(best_plan):
                 print("One stragedy executed")
+                self.judge_arb_order_success_and_backup(best_plan)
                 return True
         return False
 
@@ -441,8 +515,8 @@ class Arbitrage:
             banks_info = self.get_all_bankinfo()
             self.print_all_plan_eval(banks_info)
             self.print_total_asset(banks_info)
-            # if self.run_stragedy(banks_info):  # real-trading
-            #     break
+            if self.run_stragedy(banks_info):  # real-trading
+                continue
 
             # quoinex_info=self.autotrade.get_bank_personal_info("quoinex")
             # if quoinex_info[0] > 1050000:
@@ -459,10 +533,12 @@ if __name__ == '__main__':
     print("Arb")
     mytrade = AutoTrading()
     # print(mytrade.get_asset_quoinex())
-    # mytrade.execute_trade("quoinex", "buy", 0.001)
+    # mytrade.execute_trade("quoinex", "buy", 0.027)
     # arb info example
-    myarbitrage = Arbitrage()
+    banklist = ["zaif", "quoinex", "bitflyer", "bitbank"]
+    # banklist = ["quoinex", "bitflyer", "bitbank"]
+    myarbitrage = Arbitrage(banklist)
 
     myarbitrage.run()
 
-    # myarbitrage.arbitrage_once("zaif","quoinex",0.045)
+    # myarbitrage.arbitrage_once("zaif","quoinex",0.53)
