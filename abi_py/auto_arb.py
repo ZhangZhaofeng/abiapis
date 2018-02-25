@@ -8,10 +8,11 @@ from tradingapis.bitbank_api import public_api, private_api
 from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
-import apis
+import checkbalance
 import keysecret as ks
 import memcache
 import time
+from pathlib import Path
 
 
 class MyAutoTrading(private.AutoTrading):
@@ -124,7 +125,7 @@ class MyArbitrage(private.Arbitrage):
         self.autotrade = MyAutoTrading()
         self.DIFF_PRICE_SHELHOLD=-10000
 
-    def arbitrage_once(self, buy_bankname, sell_bankname, if_judge_tradable, amount=0.001, ):
+    def arbitrage_once(self, buy_bankname, sell_bankname, if_judge_tradable, amount=0.001 ):
 
         if if_judge_tradable:
             print("Judge if it can trade once")
@@ -252,12 +253,18 @@ class MyArbitrage(private.Arbitrage):
         while t < trytimes:
             t += 1
             try:
-                result1 = self.autotrade.get_asset(buy)
-                result2 = self.autotrade.get_asset(sell)
+                if result1 == ['.0','.0']:
+                    result1 = self.autotrade.get_asset(buy)
+                if result2 == ['.0','.0']:
+                    result2 = self.autotrade.get_asset(sell)
                 if amount == -1.0:
                     amount = self.plan_max_mount(result1, result2, buy, sell, market_price, market_list)
-                amount = offset_mount * amount
+
                 amount = float('%.3f'%amount)
+                if not (self.autotrade.judge_tradable(buy, 'buy', amount)):
+                    offset_mount -= 0.05
+                    continue
+                amount = offset_mount * amount
                 print('Amount is %f'%(amount))
                 break
             except Exception:
@@ -300,29 +307,41 @@ def get_arb_cost(offset, offset_pairs, buy, sell):
     return -1
 
 
+def write_log(filename, a_string):
+    time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+    log_file = Path(filename)
+    if log_file.is_file():
+        with open(log_file, 'a') as lf:
+            lf.write('%s @ %s \n' % (a_string, time_str))
+    else:
+        with open(log_file, 'w') as lf:
+            lf.write('%s @ %s \n' % (a_string, time_str))
 
-
+def print_and_write(str, filename = './treading_log'):
+    print(str)
+    write_log(filename, str)
 
 if __name__ == '__main__':
     autotrading = MyAutoTrading()
     arbobject = MyArbitrage()
     #market_list = ['zaif', 'quoinex', 'bitbank', 'bitflyer']
     possible_market = ['zaif', 'bitbank', 'bitflyer']
+    setoff_threshold = 1000
+    logfile = './treading_log'
 
     trading_pairs = observer.get_offset_pairs(possible_market, True)
     pairs_number = len(trading_pairs)
 
     # all pairs has a arb label at first time for 0:arb  for 1:offset  for 2:initial
     arb_label = [2]*pairs_number
-    arb_poss_label = [0]*pairs_number
-    setoff_poss_label = [0]*pairs_number
+
 
     start_set_init_setoff = 0
     if start_set_init_setoff:
         # zaif-bitbank bitbank-zaif zaif-bitflyer bitflyer-zaif bitbank-bitflyer bitflyer-bitbank
-        arb_label=[2,2,0,1,2,2]
+        arb_label=[0,1,2,2,2,2]
 
-    check_balance = 1
+    check_balance = 0
     if check_balance:
         autotrading.calculate_captial(possible_market)
         autotrading.calculate_all_captial()
@@ -330,6 +349,7 @@ if __name__ == '__main__':
         print(autotrading.currency2)
         print(autotrading.allcurrency1)
         print(autotrading.allcurrency2)
+
 
     #zaif2 = autotrading.get_asset_zaif()
 
@@ -342,6 +362,8 @@ if __name__ == '__main__':
     if_arb = 1
 
     while if_arb:
+        arb_poss_label = [0] * pairs_number
+        setoff_poss_label = [0] * pairs_number
         arb_chance = shared.get('arb_chance')
         offset_chance = shared.get('offset_chance')
         all_offsets = shared.get('offset')
@@ -365,16 +387,23 @@ if __name__ == '__main__':
 
 #TODO add judje largest arb pairs
 
+        costs = []
+        for i in range(0, pairs_number):
+            costs.append(get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1]))
+        min_cost_index = costs.index(min(costs))
+
+        #print('The min cost is to buy at %s and sell at %s, cost is %d:%f'%(trading_pairs[min_cost_index][0],trading_pairs[min_cost_index][1],min_cost_index,costs[min_cost_index]))
+
         for i in range(0,pairs_number):
             # if there is profit in this arb and we can arb, do it after that mark it as offsetable
             if arb_poss_label[i]==1 and arb_label[i] == 2:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
-                print('It is good time to preform arb to buy @ %s and sell @ %s. Profit is %f '%(trading_pairs[i][0],trading_pairs[i][1],-cost ))
+                print_and_write('It is good time to preform arb to buy @ %s and sell @ %s. Profit is %f '%(trading_pairs[i][0],trading_pairs[i][1],-cost ))
                 #TODO banzhuan
                 arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.05)
                 # for test
                 if arb_result == 0:
-                    print('Arb succeed, sleep 5 seconds')
+                    print_and_write('Arb succeed, sleep 5 seconds')
                 else:
                     # if no money find a chance to offset
                     if arb_result == 2:
@@ -383,13 +412,14 @@ if __name__ == '__main__':
                             arb_label[i + 1] = 1
                         else:
                             arb_label[i - 1] = 1
-                        print('Change to offset mode')
+                        print_and_write('Change to offset mode')
+                        #raise Exception('Change to offset mode')
                         #print(setoff_poss_label)
                         #print(arb_label)
                     else:
                         raise Exception('Failed! because %d'%(arb_result))
-                    print('Arb failed code %d'%arb_result)
-            break
+                    print_and_write('Arb failed code %d'%arb_result)
+                break
 
 
 # TODO add judje largest setoff pairs
@@ -398,25 +428,33 @@ if __name__ == '__main__':
             # if there is a pair need to offset and it is possible, do it
             if setoff_poss_label[i] == 1 and arb_label[i] == 1:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
-                print('It is good time to preform offset to buy @ %s and sell @ %s. Cost is %f' % (
-                trading_pairs[i][0], trading_pairs[i][1],cost))
-                arb_result = arbobject.offset_trade(trading_pairs[i][0], trading_pairs[i][1], market_price, market_list, amount = -1.0)
+                if cost < setoff_threshold:
+                    print_and_write('It is good time to preform offset to buy @ %s and sell @ %s. Cost is %f' % (
+                    trading_pairs[i][0], trading_pairs[i][1],cost))
+                    arb_result = arbobject.offset_trade(trading_pairs[i][0], trading_pairs[i][1], market_price, market_list, amount = -1.0)
+                else:
+                    print_and_write('Some thing wrong')
+                    print_and_write(arb_label)
+                    print_and_write(setoff_poss_label)
+                    continue
                 if arb_result == 0:
-                    print('Offset succeed. Set pairs to begin')
+                    print_and_write('Offset succeed. Set pairs to begin')
                     arb_label[i] = 2
                     if (i % 2) == 0:
                         arb_label[i + 1] = 2
                     else:
                         arb_label[i - 1] = 2
-                    print(arb_label)
+                    print_and_write(arb_label)
+                    raise Exception('Offset finished')
                 elif arb_result == 2:
-                    print('Offset failed code %d'%arb_result)
+                    print_and_write('Offset failed code %d'%arb_result)
+                    raise Exception('Offset Finished')
                 else:
                     raise Exception('Failed! because %d' % (arb_result))
                 break
             elif setoff_poss_label[i] == 0 and arb_label[i] == 1:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
-                print('We need offset to buy @ %s and sell @ %s, But the cost is too high. The cost is %f' % (
+                print_and_write('We need offset to buy @ %s and sell @ %s, But the cost is too high. The cost is %f' % (
                     trading_pairs[i][0], trading_pairs[i][1], cost))
 
         time.sleep(5)

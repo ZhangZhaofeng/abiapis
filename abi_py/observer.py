@@ -284,7 +284,7 @@ if __name__ == '__main__':
 
 # initial markets
     trade_threshold = 7000
-    setoff_threshold = 2000
+    setoff_threshold = 1000
     product_pair = 'BTC_JPY'
     possible_market = [ 'zaif',  'quoinex', 'bitbank', 'bitflyer']
     len_market = len(possible_market)
