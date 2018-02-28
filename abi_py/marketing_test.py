@@ -75,9 +75,9 @@ class AutoTradingForMarketing_Tset(auto_arb.MyAutoTrading):
             if executed_amount['status'] != 'UNFILLED' or part_flag == True:
                 print('Executing buy order')
                 try:
-                    #checkid = self.cancle_order(orderid)
-                    #return ('sleep', checkid['remaining_amount'])
-                    return('sleep', '')
+                    checkid = self.cancle_order(orderid)
+                    return ('partbuy', checkid['remaining_amount'])
+                    #return('sleep', '')
                 except Exception:
                     time.sleep(3)
                     return ('buysell', '')
@@ -104,9 +104,9 @@ class AutoTradingForMarketing_Tset(auto_arb.MyAutoTrading):
             if executed_amount['status'] != 'UNFILLED' or part_flag == True:
                 print('Executing buy order')
                 try:
-                    #checkid = self.cancle_order(orderid)
-                    #return ('sleep', checkid['remaining_amount'])
-                    return ('sleep', '')
+                    checkid = self.cancle_order(orderid)
+                    return ('partsell', checkid['remaining_amount'])
+                    #return ('sleep', '')
                 except Exception:
                     time.sleep(3)
                     return ('buysell', '')
@@ -233,6 +233,10 @@ if __name__=='__main__':
                 elif judgeresult == 'partsell':
                     results = autoTradingForMarketing_Tset.onTrick(depth, 'sell', float(unslove_part))
                     orderid_sell = results['order_id']
+                auto_arb.print_and_write(
+                    'order is partly filled, try %s %s @ %s again!' % ( judgeresult, unslove_part, results['price']), log_file)
+                # auto_arb.print_and_write(results, log_file)
+                time.sleep(5)
             elif judgeresult == 'sleep' :
                 auto_arb.print_and_write('Orders are not at deals, wait 3 seconds', log_file)
                 time.sleep(3)
