@@ -58,74 +58,69 @@ class AutoTradingForMarketing_Tset(auto_arb.MyAutoTrading):
         order = self.bitbank_api.cancel_order('btc_jpy', id)
         return(order)
 
-    def judge_order(self, past_orderids, part_flag = False):
+    def cancel_exception(self, id, oldjpy, oldbtc, buysell):
+        time.sleep(3)
+        autotrading = auto_arb.MyAutoTrading()
+        possible_market = ['bitbank']
+        autotrading.calculate_captial(possible_market)
+        autotrading.calculate_all_captial()
+        cur_btc = autotrading.currency2[0]
+        cur_jpy = autotrading.currency1[0]
+
+        times = 2
+        while oldbtc != cur_btc and times > 0:
+            times -= 1
+            try:
+                print('Try to cancel operation again')
+                checkid = self.cancle_order(id)
+                if float(checkid['remaining_amount']) > 0.0:
+                    return (buysell, checkid['remaining_amount'])
+                else:
+                    return ('buysell', '')
+            except Exception:
+                print('Something wrong, try to cancel operation again')
+            finally:
+                time.sleep(3)
+                autotrading.calculate_captial(possible_market)
+                autotrading.calculate_all_captial()
+                cur_btc = autotrading.currency2[0]
+        print('cur : %f, old :  %f' % (cur_btc, oldbtc))
+        if cur_btc > oldbtc:
+            amount = cur_btc - oldbtc
+            return ('sell', ('%f')%amount)
+        elif cur_btc < oldbtc:
+            amount = oldbtc - cur_btc
+            return ('buy', ('%f') % amount)
+        else:
+            return ('buysell','')
+
+
+    def judge_order(self, past_orderids, oldbtc, oldjpy):
         #past_orderids = [buy ,sell]
         orders = self.get_orders()
-        #print(orders)
         curr_orderids = []
         for i in orders['orders']:
             curr_orderids.append(i['order_id'])
 
         if (past_orderids[0] not in curr_orderids) and (past_orderids[1] not in curr_orderids):
-            #print('Both executing')
             return ('buysell','')
         elif (past_orderids[0] in curr_orderids) and (past_orderids[1] not in curr_orderids):
             orderid = past_orderids[0]
-            executed_amount = self.get_orderbyid(orderid)
-            if executed_amount['status'] != 'UNFILLED' or part_flag == True:
-                print('Executing buy order')
-                try:
-                    checkid = self.cancle_order(orderid)
-                    return ('partbuy', checkid['remaining_amount'])
-                    #return('sleep', '')
-                except Exception:
-                    time.sleep(3)
-                    return ('buysell', '')
-
             try:
                 checkid = self.cancle_order(orderid)
-                return ('buy','')
+                return ('buy', checkid['remaining_amount'])
             except Exception:
-                time.sleep(3)
-                temp = self.get_orders()
-                temp_ids = []
-                for i in temp['orders']:
-                    temp_ids.append(i['order_id'])
-                if orderid not in temp_ids:
-                    print('Try to cancel it but may be approved')
-                    return ('buysell','')
-                else:
-                    #checkid = self.cancle_order(orderid)
-                    print('Error when cancel a buy order id:%d'% (orderid))
-                    return ('buysell','')
+                str, amount = self.cancel_exception(orderid, oldjpy ,oldbtc, 'buy')
+                return (str, amount)
+
         elif (past_orderids[0] not in curr_orderids) and (past_orderids[1] in curr_orderids):
             orderid = past_orderids[1]
-            executed_amount = self.get_orderbyid(orderid)
-            if executed_amount['status'] != 'UNFILLED' or part_flag == True:
-                print('Executing buy order')
-                try:
-                    checkid = self.cancle_order(orderid)
-                    return ('partsell', checkid['remaining_amount'])
-                    #return ('sleep', '')
-                except Exception:
-                    time.sleep(3)
-                    return ('buysell', '')
             try:
                 checkid = self.cancle_order(orderid)
-                return ('sell','')
+                return ('sell', checkid['remaining_amount'])
             except Exception:
-                time.sleep(3)
-                temp = self.get_orders()
-                temp_ids = []
-                for i in temp['orders']:
-                    temp_ids.append(i['order_id'])
-                if orderid not in temp_ids:
-                    print('Try to cancel it but may be approved')
-                    return ('buysell','')
-                else:
-                    #checkid = self.cancle_order(orderid)
-                    print('Error when cancel a sell order id:%d'% (orderid))
-                    return ('buysell','')
+                str, amount = self.cancel_exception(orderid, oldjpy, oldbtc, 'sell')
+                return (str, amount)
 
         elif (past_orderids[0] in curr_orderids) and (past_orderids[1] in curr_orderids):
             return('sleep','')
@@ -147,8 +142,8 @@ def get_price(depth):
     amount_asks = 0.0
     amount_bids = 0.0
     largest_diff = 500
-    float_amount_buy = 0.001
-    float_amount_sell = 0.001
+    float_amount_buy = 0.01
+    float_amount_sell = 0.01
     len_a = len(asks)
     for i in range(0, len_a):
         amount_asks += float(asks[i][1])
@@ -185,7 +180,7 @@ if __name__=='__main__':
     autotrading.calculate_all_captial()
     start_jpy = autotrading.currency1[0]
     start_btc = autotrading.currency2[0]
-    loss_cut = 1000
+    loss_cut = 100
     loss_cut_btc = 0.02
     #
     cur_jpy = start_jpy
@@ -206,35 +201,23 @@ if __name__=='__main__':
         #auto_arb.print_and_write(results, log_file)
         time.sleep(10)
         flag = 1
-        part_flag= False
         while flag:
-            judgeresult, unslove_part = autoTradingForMarketing_Tset.judge_order([orderid_buy, orderid_sell], part_flag)
+            judgeresult, unslove_part = autoTradingForMarketing_Tset.judge_order([orderid_buy, orderid_sell], cur_btc, cur_jpy)
             if judgeresult == 'buysell' :
                 auto_arb.print_and_write('All order are at a deal, try next time', log_file)
                 flag = 0
-                part_flag = False
-                time.sleep(1)
+                time.sleep(5)
             elif judgeresult == 'buy' or judgeresult == 'sell' :
                 depth = get_depth('bitbank', 'BTC_JPY')
-                results = autoTradingForMarketing_Tset.onTrick(depth,judgeresult)
-                if judgeresult == 'buy':
-                    orderid_buy = results['order_id']
-                elif judgeresult == 'sell':
-                    orderid_sell = results['order_id']
-                auto_arb.print_and_write('%s order is left, try %s it @ %s again!'%(judgeresult, judgeresult, results['price']), log_file)
-                #auto_arb.print_and_write(results, log_file)
-                time.sleep(5)
-            elif judgeresult == 'partbuy' or judgeresult == 'partsell' :
-                depth = get_depth('bitbank', 'BTC_JPY')
                 part_flag = True
-                if judgeresult == 'partbuy':
+                if judgeresult == 'buy':
                     results = autoTradingForMarketing_Tset.onTrick(depth, 'buy', float(unslove_part))
                     orderid_buy = results['order_id']
-                elif judgeresult == 'partsell':
+                elif judgeresult == 'sell':
                     results = autoTradingForMarketing_Tset.onTrick(depth, 'sell', float(unslove_part))
                     orderid_sell = results['order_id']
                 auto_arb.print_and_write(
-                    'order is partly filled, try %s %s @ %s again!' % ( judgeresult, unslove_part, results['price']), log_file)
+                    'order is not full filled, try %s %s @ %s again!' % ( judgeresult, unslove_part, results['price']), log_file)
                 # auto_arb.print_and_write(results, log_file)
                 time.sleep(5)
             elif judgeresult == 'sleep' :
