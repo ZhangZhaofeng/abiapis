@@ -311,13 +311,13 @@ def write_log(filename, a_string):
     time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
     log_file = Path(filename)
     if log_file.is_file():
-        with open(log_file, 'a') as lf:
+        with open(filename, 'a') as lf:
             lf.write('%s @ %s \n' % (a_string, time_str))
     else:
-        with open(log_file, 'w') as lf:
+        with open(filename, 'w') as lf:
             lf.write('%s @ %s \n' % (a_string, time_str))
 
-def print_and_write(str, filename = './treading_log'):
+def print_and_write(str, filename = '/home/zhang/trading_log'):
     print(str)
     write_log(filename, str)
 
@@ -325,9 +325,9 @@ if __name__ == '__main__':
     autotrading = MyAutoTrading()
     arbobject = MyArbitrage()
     #market_list = ['zaif', 'quoinex', 'bitbank', 'bitflyer']
-    possible_market = ['zaif', 'bitbank', 'bitflyer']
+    possible_market = ['zaif', 'quoinex' ,'bitbank', 'bitflyer']
     setoff_threshold = 1000
-    logfile = './treading_log'
+    logfile = '/home/zhang/trading_log'
 
     trading_pairs = observer.get_offset_pairs(possible_market, True)
     pairs_number = len(trading_pairs)
@@ -336,10 +336,10 @@ if __name__ == '__main__':
     arb_label = [2]*pairs_number
 
 
-    start_set_init_setoff = 0
+    start_set_init_setoff =0
     if start_set_init_setoff:
-        # zaif-bitbank bitbank-zaif zaif-bitflyer bitflyer-zaif bitbank-bitflyer bitflyer-bitbank
-        arb_label=[0,1,2,2,2,2]
+        # zaif-q q-zaif zaif-bitbank bitbank-zaif zaif-bitflyer bitflyer-zaif q-bitbank bitbank-q q-bitflyer bitflyer-q bitbank-bitflyer bitflyer-bitbank
+        arb_label=[2,2,0,1,2,2,2,2,2,2,2,2]
 
     check_balance = 0
     if check_balance:
@@ -361,6 +361,7 @@ if __name__ == '__main__':
 
     if_arb = 1
 
+    offset_stabel = 5
     while if_arb:
         arb_poss_label = [0] * pairs_number
         setoff_poss_label = [0] * pairs_number
@@ -428,7 +429,7 @@ if __name__ == '__main__':
             # if there is a pair need to offset and it is possible, do it
             if setoff_poss_label[i] == 1 and arb_label[i] == 1:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
-                if cost < setoff_threshold:
+                if cost < setoff_threshold: #and offset_stabel < 0:
                     print_and_write('It is good time to preform offset to buy @ %s and sell @ %s. Cost is %f' % (
                     trading_pairs[i][0], trading_pairs[i][1],cost))
                     arb_result = arbobject.offset_trade(trading_pairs[i][0], trading_pairs[i][1], market_price, market_list, amount = -1.0)
@@ -445,6 +446,7 @@ if __name__ == '__main__':
                     else:
                         arb_label[i - 1] = 2
                     print_and_write(arb_label)
+                    offset_stabel = 5
                     raise Exception('Offset finished')
                 elif arb_result == 2:
                     print_and_write('Offset failed code %d'%arb_result)
@@ -454,8 +456,14 @@ if __name__ == '__main__':
                 break
             elif setoff_poss_label[i] == 0 and arb_label[i] == 1:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
-                print_and_write('We need offset to buy @ %s and sell @ %s, But the cost is too high. The cost is %f' % (
+                if cost < setoff_threshold and offset_stabel >= 0:
+                    offset_stabel -= 1
+                    print_and_write('It maybe good time for offset but we need to wait the market to being stable, need to try last %d times'%(offset_stabel))
+                else:
+                    print_and_write('We need offset to buy @ %s and sell @ %s, But the cost is too high. The cost is %f' % (
                     trading_pairs[i][0], trading_pairs[i][1], cost))
+
+
 
         time.sleep(5)
 
