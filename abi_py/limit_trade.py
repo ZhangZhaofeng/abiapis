@@ -8,7 +8,7 @@ if __name__ == '__main__':
     print("limit_trade")
     mytrade = private.AutoTrading()
     # print(mytrade.get_asset_quoinex())
-    mytrade.execute_trade("zaif", "buy", 0.003)
+    mytrade.execute_trade("bitbank", "buy", 0.01)
 
     banklist = ["zaif", "quoinex", "bitflyer", "bitbank"]
     myarbitrage = private.Arbitrage(banklist)
