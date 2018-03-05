@@ -1,7 +1,7 @@
 from tradingapis.quoine_api import client
 import auto_arb
 import time
-
+import observer
 
 class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
     def trade_quoine_limit(self, type, buysellprice ,amount):
@@ -97,6 +97,17 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
         else:
             return (buysell, '%f'% amount)
 
+    def get_property(self):
+        possible_market = ['quoinex']
+        self.calculate_captial(possible_market)
+        self.calculate_all_captial()
+        cur_btc = self.currency2[0]
+        cur_jpy = self.currency1[0]
+        buysellpairs = observer.get_bid_ask_quoine('BTC_JPY')
+        price = (buysellpairs[0] + buysellpairs[1])/2
+        property = cur_jpy + cur_btc * price
+        return(property, cur_jpy, cur_btc)
+
     def judge_order(self, past_orderids, oldbtc, oldjpy):
         #past_orderids = [buy ,sell]
         orders = self.get_orders()
@@ -105,42 +116,37 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
             curr_orderids.append(i['id'])
 
         if (past_orderids[0] not in curr_orderids) and (past_orderids[1] not in curr_orderids):
-            possible_market = ['quoinex']
-            self.calculate_captial(possible_market)
-            self.calculate_all_captial()
-            cur_btc = self.currency2[0]
-            cur_jpy = self.currency1[0]
-            if cur_btc > oldbtc:
-                amount = cur_btc - oldbtc
-                return (self.return_deal_amount('sell', amount))
-            elif cur_btc < oldbtc:
-                amount = oldbtc - cur_btc
-                return (self.return_deal_amount('buy', amount))
-            else:
-                return ('buysell', '0')
+            return ('buysell', '0')
 
-        elif (past_orderids[0] in curr_orderids) and (past_orderids[1] not in curr_orderids):
-            orderid = past_orderids[0]
-            try:
-                checkid = self.cancle_order(orderid)
-                amount = float(checkid['quantity'])-float(checkid['filled_quantity'])
-                return (self.return_deal_amount('buy', amount))
-            except Exception:
-                str, amount = self.cancel_exception(orderid, oldjpy ,oldbtc, 'buy')
-                return (self.return_deal_amount(str, amount))
+        elif (past_orderids[0] in curr_orderids) or (past_orderids[1] in curr_orderids):
+            # cancel all orders
+            ids = []
+            if past_orderids[0] in curr_orderids:
+                ids.append(past_orderids[0]) # buy order id
+            if past_orderids[1] in curr_orderids:
+                ids.append(past_orderids[1]) # sell order id
 
-        elif (past_orderids[0] not in curr_orderids) and (past_orderids[1] in curr_orderids):
-            orderid = past_orderids[1]
-            try:
-                checkid = self.cancle_order(orderid)
-                amount = float(checkid['quantity']) - float(checkid['filled_quantity'])
-                return (self.return_deal_amount('sell', amount))
-            except Exception:
-                str, amount = self.cancel_exception(orderid, oldjpy, oldbtc, 'sell')
-                return (self.return_deal_amount(str, amount))
+            opflag = 1
+            amount = 0
+            for i in ids:
+                while opflag:
+                    try:
+                        checkid = self.cancle_order(i)
+                        amount += float(checkid['quantity'])-float(checkid['filled_quantity'])
+                        opflag = 0
+                    except Exception:
+                        time.sleep(5)
+                        order = self.get_orderbyid(i)
+                        if order['status'] == 'filled':
+                            amount += float(order['quantity'])-float(order['filled_quantity'])
+                            print('Filled before cancelling')
+                            opflag = 0
+                        else:
+                            continue
 
-        elif (past_orderids[0] in curr_orderids) and (past_orderids[1] in curr_orderids):
-            return('sleep','')
+
+        return('canceled', '%f'%amount)
+
 
     def get_depth(self):
         product_id = 5
@@ -191,25 +197,21 @@ if __name__=='__main__':
     autoTradingForMarketing_Tset = AutoTradingForMarketing_quoine()
     #autotrading = auto_arb.MyAutoTrading()
     log_file = './marketing_log'
-
     possible_market = ['quoinex']
-    autoTradingForMarketing_Tset.calculate_captial(possible_market)
-    autoTradingForMarketing_Tset.calculate_all_captial()
-    start_jpy = autoTradingForMarketing_Tset.currency1[0]
-    start_btc = autoTradingForMarketing_Tset.currency2[0]
-    loss_cut = 100
-    loss_cut_btc = 0.02
-    #
-    cur_jpy = start_jpy
-    cur_btc = start_btc
+
 
     print(autoTradingForMarketing_Tset.get_orders())
 
     try_times = 1000
     while try_times> 0:
-        auto_arb.print_and_write(cur_jpy, log_file)
-        auto_arb.print_and_write(cur_btc, log_file)
-        auto_arb.print_and_write('profit: %f'%(cur_jpy - start_jpy), log_file)
+        [start_property, start_jpy, start_btc]=autoTradingForMarketing_Tset.get_property()
+        loss_cut = 100
+        loss_cut_btc = 0.02
+        #
+
+        auto_arb.print_and_write(start_jpy, log_file)
+        auto_arb.print_and_write(start_btc, log_file)
+
         depth = autoTradingForMarketing_Tset.get_depth()
         results = autoTradingForMarketing_Tset.onTrick(depth)
         orderid_buy = results[0]['id']
@@ -219,46 +221,22 @@ if __name__=='__main__':
         time.sleep(20)
         flag = 1
         while flag:
-            judgeresult, unslove_part = autoTradingForMarketing_Tset.judge_order([orderid_buy, orderid_sell], cur_btc, cur_jpy)
+            judgeresult, unslove_part = autoTradingForMarketing_Tset.judge_order([orderid_buy, orderid_sell], start_btc, start_jpy)
             if judgeresult == 'buysell' :
                 auto_arb.print_and_write('All order are at a deal, try next time', log_file)
                 flag = 0
                 time.sleep(5)
-            elif judgeresult == 'buy' or judgeresult == 'sell' :
-                depth = autoTradingForMarketing_Tset.get_depth()
-                part_flag = True
-                if judgeresult == 'buy':
-                    results = autoTradingForMarketing_Tset.onTrick(depth, 'buy', float(unslove_part))
-                    orderid_buy = results['id']
-                elif judgeresult == 'sell':
-                    results = autoTradingForMarketing_Tset.onTrick(depth, 'sell', float(unslove_part))
-                    orderid_sell = results['id']
-                auto_arb.print_and_write(
-                    'order is not full filled, try %s %s @ %s again!' % ( judgeresult, unslove_part, results['price']), log_file)
-                # auto_arb.print_and_write(results, log_file)
-                time.sleep(10)
-            elif judgeresult == 'sleep' :
-                auto_arb.print_and_write('Orders are not at deals, wait 3 seconds, unslovepart: %s'%unslove_part, log_file)
-                time.sleep(3)
+            elif judgeresult == 'canceled' :
+                flag = 0
+                auto_arb.print_and_write('Orders are not at deals, cancel and try again, unslovepart: %s'%unslove_part, log_file)
+                time.sleep(5)
 
-        autoTradingForMarketing_Tset.calculate_captial(possible_market)
-        autoTradingForMarketing_Tset.calculate_all_captial()
-        cur_jpy = autoTradingForMarketing_Tset.currency1[0]
-        cur_btc = autoTradingForMarketing_Tset.currency2[0]
-        if start_jpy - cur_jpy > loss_cut:
+        [cur_property, cur_jpy, cur_btc] = autoTradingForMarketing_Tset.get_property()
+
+
+        if start_property - cur_property > loss_cut:
             try_times = 0
-            auto_arb.print_and_write('Triggered loss cut, stop', log_file)
-        elif start_btc - cur_btc > loss_cut_btc:
-            try_times = 0
-            auto_arb.print_and_write('Something wrong, only one side approved, stop', log_file)
+            auto_arb.print_and_write('Triggered loss cut, (loss: %f), stop'%(start_property - cur_property), log_file)
         else:
             try_times -= 1
-    #print(results)
-
-    #time.sleep(3)
-
-
-    #print(len(orders['orders']))
-    #print(get_price(depth))
-
-    #onTrick(depth)
+        auto_arb.print_and_write('profit: %f' % (start_property - cur_property), log_file)
