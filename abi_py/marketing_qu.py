@@ -143,21 +143,123 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
             return('sleep','')
 
     def get_depth(self):
-        product_id = 5
-        depth =self.quoinex_api.get_order_book(product_id)
+        depth =self.quoinex_api.get_order_book(product_id=5)
         return(depth)
 
-def get_price(depth):
+    def get_last_executions(self):
+        executions = self.quoinex_api.get_executions(product_id=5,limit=50)
+        return(executions['models'])
+
+    def get_last_price(self, executions):
+        last_buy_price = []
+        last_sell_price = []
+        last_price = []
+        last_buy_amount = []
+        last_sell_amount = []
+        for i in executions:
+            if i['taker_side'] == 'buy':
+                last_buy_price.append(float(i['price']))
+                last_buy_amount.append(float(i['quantity']))
+            elif i['taker_side'] == 'sell':
+                last_sell_price.append(float(i['price']))
+                last_sell_amount.append(float(i['quantity']))
+            last_price.append(float(i['price']))
+
+        return [last_price, last_buy_price, last_sell_price, last_buy_amount, last_sell_amount]
+
+    def judge_market(self):
+
+        #1. judge if bull or bear
+
+        mid_price, sell_depth, buy_depth = get_price(self.get_depth(), if123 = True)
+        margin1 = mid_price * 0.00005
+        bull = False
+        bear = False
+
+        buyselllastprice = self.get_last_price(self.get_last_executions())
+
+        lastprice = buyselllastprice[0][0:20]
+
+        if mid_price > max(lastprice[0:]) + margin1 and mid_price > lastprice[1]:
+            print('bull')
+            bull = True
+        elif mid_price < min(lastprice[0:]) - margin1 and mid_price < lastprice[1]:
+            print('bear')
+            bear = True
+
+        # 2. judge if over buy or over sell
+        last_buy_amount = sum(buyselllastprice[3])
+        if last_buy_amount == 0:
+            last_buy_amount = 0.001
+        last_sell_amount = sum(buyselllastprice[4])
+        if last_sell_amount == 0:
+            last_sell_amount = 0.001
+        passedbuy = False
+        passedsell = False
+
+        futurebuy = False
+        futuresell = False
+
+
+        margin2 = 2.5
+        if last_buy_amount/last_sell_amount > margin2:
+            print('Passedbuy')
+            passedbuy = True
+        elif last_sell_amount/last_buy_amount > margin2:
+            print('Passedsell')
+            passedsell = True
+
+        if sell_depth/buy_depth > 1.4:
+            print('Futurebuy')
+            futurebuy = True
+        elif buy_depth/sell_depth > 1.4:
+            print('Futuresell')
+            futuresell = True
+
+        if passedbuy and futurebuy :
+            passedbuy = False
+            futurebuy = False
+        elif passedsell and futuresell :
+            passedsell = False
+            futuresell = False
+
+        # 3. judge if big difference of last price
+        margin3 = mid_price * 0.002
+        faraway = False
+        if abs(mid_price - lastprice[0]*0.7 - lastprice[1]*0.2 - lastprice[2]*0.1) > margin3:
+            print('Faraway')
+            faraway = True
+
+        if bull or bear or passedbuy or passedsell or futurebuy or futuresell or faraway:
+            return False
+        else:
+            return True
+
+
+def get_price(depth, if123 = False):
     asks = depth['sell_price_levels']
     bids = depth['buy_price_levels']
 
     sell_price = float(asks[0][0])
     buy_price = float(bids[0][0])
+    sell_price1 = sell_price
+    buy_price1 = buy_price
+    sell_price2 = float(asks[1][0])
+    buy_price2 = float(bids[1][0])
+    sell_price3 = float(asks[2][0])
+    buy_price3 = float(bids[2][0])
     amount_asks = 0.0
     amount_bids = 0.0
-    largest_diff = 300
-    float_amount_buy = 0.001
-    float_amount_sell = 0.001
+    largest_diff = 500
+    float_amount_buy = 0.01
+    float_amount_sell = 0.01
+    buy_depth = 0.0
+    sell_depth = 0.0
+
+    for i in range(0, 10):
+        sell_depth += float(asks[i][1])
+        buy_depth  += float(bids[i][1])
+
     len_a = len(asks)
     for i in range(0, len_a):
         amount_asks += float(asks[i][1])
@@ -172,7 +274,9 @@ def get_price(depth):
             buy_price = float(bids[i][0]) + 3.0
             break
 
-    mid_price = (sell_price + buy_price)/2
+
+    ave_price = (sell_price1 + buy_price1)/2 *0.7 + (sell_price2 + buy_price2)/2 *0.2  + (sell_price3 + buy_price3)/2 *0.1
+    mid_price =  (sell_price1 + buy_price1)/2
     if sell_price - mid_price > largest_diff:
         sell_price = mid_price + largest_diff
     if mid_price -buy_price > largest_diff:
@@ -181,7 +285,10 @@ def get_price(depth):
         sell_price = float('%.2f'%sell_price)
         buy_price = float('%.2f'%buy_price)
 
-    return([buy_price, sell_price ])
+    if if123:
+        return (ave_price, sell_depth, buy_depth)
+    else:
+        return([buy_price, sell_price ])
 
 
 
@@ -204,19 +311,28 @@ if __name__=='__main__':
     cur_btc = start_btc
 
     print(autoTradingForMarketing_Tset.get_orders())
+    prices = autoTradingForMarketing_Tset.judge_market()
+
 
     try_times = 1000
+
     while try_times> 0:
         auto_arb.print_and_write(cur_jpy, log_file)
         auto_arb.print_and_write(cur_btc, log_file)
         auto_arb.print_and_write('profit: %f'%(cur_jpy - start_jpy), log_file)
         depth = autoTradingForMarketing_Tset.get_depth()
-        results = autoTradingForMarketing_Tset.onTrick(depth)
-        orderid_buy = results[0]['id']
-        orderid_sell = results[1]['id']
-        auto_arb.print_and_write('Orders placed! buy: %s sell: %s, wait 10s'%(results[0]['price'],results[1]['price']), log_file)
+        if autoTradingForMarketing_Tset.judge_market():
+            results = autoTradingForMarketing_Tset.onTrick(depth)
+            orderid_buy = results[0]['id']
+            orderid_sell = results[1]['id']
+            auto_arb.print_and_write('Orders placed! buy: %s sell: %s, wait 10s'%(results[0]['price'],results[1]['price']), log_file)
         #auto_arb.print_and_write(results, log_file)
-        time.sleep(20)
+            time.sleep(40)
+        else:
+            auto_arb.print_and_write(
+                'Not good time to do it, try again')
+            time.sleep(5)
+            continue
         flag = 1
         while flag:
             judgeresult, unslove_part = autoTradingForMarketing_Tset.judge_order([orderid_buy, orderid_sell], cur_btc, cur_jpy)
