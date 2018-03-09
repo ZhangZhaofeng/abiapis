@@ -16,7 +16,57 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
 
         return(order)
 
-    def onTrick(self, depth , type ='buysell', amount = 0.001):
+    def trade_bitbank_limit(self, type, buysellprice ,amount):
+        print("trade_bitbank")
+        if type == "BUY" or type == "buy":
+            order = self.bitbank_api.order(pair='btc_jpy',
+                                           price=str(buysellprice),
+                                           amount=str(amount),
+                                           side='buy',
+                                           order_type="limit")
+        elif type == "SELL" or type == "sell":
+            order = self.bitbank_api.order(pair='btc_jpy',
+                                           price=str(buysellprice),
+                                           amount=str(amount),
+                                           side='sell',
+                                           order_type='limit')
+        else:
+            print("error!")
+
+        return(order)
+
+
+    def trade_zaif_limit(self, type, buysellprice ,amount):
+        print("trade_zaif")
+
+        #margin_ratio = 0.05
+        # [bid, ask] = apis.get_bid_ask_zaif('btc_jpy')
+        # bid = float(bid)
+        # ask = float(ask)
+        #zaifpublic = ZaifPublicApi()
+        #last_price = round(zaifpublic.last_price(currency_pair='btc_jpy')["last_price"], 1)
+
+        if type == "BUY" or type == "buy":
+
+            order = self.zaif_api.trade(
+                currency_pair='btc_jpy',
+                action='bid',
+                price=buysellprice,
+                amount=amount
+            )
+        elif type == "SELL" or type == "sell":
+
+            order = self.zaif_api.trade(
+                currency_pair='btc_jpy',
+                action='ask',
+                price=buysellprice,
+                amount=amount
+            )
+        else:
+            print("error!")
+        return(order)
+
+    def onTrick(self, depth , type ='buysell', amount = 0.05):
         mean = 20
         # print(depth['bids'])
         buysell_pairs = get_price(depth)
@@ -147,7 +197,7 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
         return(depth)
 
     def get_last_executions(self):
-        executions = self.quoinex_api.get_executions(product_id=5,limit=50)
+        executions = self.quoinex_api.get_executions(product_id=5,limit=100)
         return(executions['models'])
 
     def get_last_price(self, executions):
@@ -172,7 +222,7 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
         #1. judge if bull or bear
 
         mid_price, sell_depth, buy_depth = get_price(self.get_depth(), if123 = True)
-        margin1 = mid_price * 0.00005
+        margin1 = mid_price * 0.00004
         bull = False
         bear = False
 
@@ -201,7 +251,7 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
         futuresell = False
 
 
-        margin2 = 2.5
+        margin2 = 1.4
         if last_buy_amount/last_sell_amount > margin2:
             print('Passedbuy')
             passedbuy = True

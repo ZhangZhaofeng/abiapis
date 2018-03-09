@@ -13,7 +13,8 @@ import auto_arb
 if __name__=='__main__':
     autotrading = auto_arb.MyAutoTrading()
     logfile = './profit_log'
-    possible_market = ['zaif', 'bitbank', 'bitflyer']
+    possible_market = ['zaif', 'bitbank', 'bitflyer', 'quoinex']
+    print(possible_market)
     autotrading.calculate_captial(possible_market)
     autotrading.calculate_all_captial()
     auto_arb.print_and_write(autotrading.currency1, logfile)

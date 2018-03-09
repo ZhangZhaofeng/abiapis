@@ -2,8 +2,9 @@ from tradingapis.quoine_api import client
 import auto_arb
 import time
 import observer
+import marketing_qu
 
-class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
+class AutoTradingForMarketing_quoine2(auto_arb.MyAutoTrading):
     def trade_quoine_limit(self, type, buysellprice ,amount):
         print("trade_quoine")
 
@@ -16,7 +17,7 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
 
         return(order)
 
-    def onTrick(self, depth , type ='buysell', amount = 0.001):
+    def onTrick(self, depth , type ='buysell', amount = 0.01):
         mean = 20
         # print(depth['bids'])
         buysell_pairs = get_price(depth)
@@ -43,6 +44,10 @@ class AutoTradingForMarketing_quoine(auto_arb.MyAutoTrading):
     def get_orders(self):
         order = self.quoinex_api.get_orders(status='live')
         return(order['models'])
+
+    def get_orders_bitbank(self):
+        order = self.bitbank_api.get_active_orders('btc_jpy')
+        return(order)
 
     def get_orderbyid(self, id):
         order = self.quoinex_api.get_order(id)
@@ -194,8 +199,10 @@ def get_price(depth):
 
 
 if __name__=='__main__':
-    autoTradingForMarketing_Tset = AutoTradingForMarketing_quoine()
+    autoTradingForMarketing_Tset = AutoTradingForMarketing_quoine2()
     #autotrading = auto_arb.MyAutoTrading()
+    judge_flag_class = marketing_qu.AutoTradingForMarketing_quoine()
+
     log_file = './marketing_log'
     possible_market = ['quoinex']
 
@@ -205,20 +212,28 @@ if __name__=='__main__':
     try_times = 1000
     while try_times> 0:
         [start_property, start_jpy, start_btc]=autoTradingForMarketing_Tset.get_property()
-        loss_cut = 100
+        loss_cut = 1000
         loss_cut_btc = 0.02
         #
 
         auto_arb.print_and_write(start_jpy, log_file)
         auto_arb.print_and_write(start_btc, log_file)
 
-        depth = autoTradingForMarketing_Tset.get_depth()
-        results = autoTradingForMarketing_Tset.onTrick(depth)
-        orderid_buy = results[0]['id']
-        orderid_sell = results[1]['id']
-        auto_arb.print_and_write('Orders placed! buy: %s sell: %s, wait 10s'%(results[0]['price'],results[1]['price']), log_file)
+
+        if judge_flag_class.judge_market():
+            depth = autoTradingForMarketing_Tset.get_depth()
+            results = autoTradingForMarketing_Tset.onTrick(depth)
+            orderid_buy = results[0]['id']
+            orderid_sell = results[1]['id']
+            auto_arb.print_and_write('Orders placed! buy: %s sell: %s, wait 10s'%(results[0]['price'],results[1]['price']), log_file)
         #auto_arb.print_and_write(results, log_file)
-        time.sleep(20)
+            time.sleep(40)
+        else:
+            auto_arb.print_and_write(
+                'Not good time to do it, try again')
+            time.sleep(5)
+            continue
+        #time.sleep(20)
         flag = 1
         while flag:
             judgeresult, unslove_part = autoTradingForMarketing_Tset.judge_order([orderid_buy, orderid_sell], start_btc, start_jpy)
@@ -234,7 +249,7 @@ if __name__=='__main__':
         [cur_property, cur_jpy, cur_btc] = autoTradingForMarketing_Tset.get_property()
 
 
-        if start_property - cur_property > loss_cut:
+        if start_property - cur_property > loss_cut or abs(start_btc - cur_btc) > loss_cut_btc:
             try_times = 0
             auto_arb.print_and_write('Triggered loss cut, (loss: %f), stop'%(start_property - cur_property), log_file)
         else:
