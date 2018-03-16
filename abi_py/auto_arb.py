@@ -52,7 +52,7 @@ class MyAutoTrading(private.AutoTrading):
             self.initlize[3] = 1
 
     def execute_trade(self, bankname, action, amount):
-        trytimes = 20
+        trytimes = 3
         i = 0
         while i< trytimes:
             i += 1
@@ -129,7 +129,7 @@ class MyArbitrage(private.Arbitrage):
 
         if if_judge_tradable:
             print("Judge if it can trade once")
-            trytimes = 20
+            trytimes = 3
             i = 0
             while i < trytimes:
                 i += 1
@@ -140,6 +140,8 @@ class MyArbitrage(private.Arbitrage):
                 except Exception:
                     print("Exception catched while judging asset, trying again.")
                     continue
+            if i >= trytimes:
+                return 5
 
             if not (result1 and result2):
                 return 2
@@ -230,7 +232,7 @@ class MyArbitrage(private.Arbitrage):
 
     # find the largest buy sell able amount
     def plan_max_mount(self, buy_asset, sell_asset , buy, sell, market_price, market_list):
-        floating_mount = 0.7
+        floating_mount = 0.8
         max_amount = 0.0
         buy_index = market_list.index(buy)
         #sell_index = market_list.index(sell)
@@ -280,11 +282,11 @@ class MyArbitrage(private.Arbitrage):
         return result
         # return 0 succeed
         # return 1 both failed since cannot get statues
-        # return 2 both failed since no money
-        # return 2 both failed since connection problem
-        # return 3 buy failed since connection problem
-        # return 4 sell failed
-        # return 5 others
+        # return 2 both failed since no money need offset
+        # return 3 only buy failed since connection problem
+        # return 4 only sell failed since connection problem
+        # return 5 both failed since connection problem
+        # return 6 both failed since unknown problem
         # return 7 only buy failed and buy at sell side
         # return 8 only sell failed and sell at buy side
 
@@ -321,12 +323,15 @@ def print_and_write(str, filename = '/home/zhang/trading_log'):
     print(str)
     write_log(filename, str)
 
+
+
+
 if __name__ == '__main__':
     autotrading = MyAutoTrading()
     arbobject = MyArbitrage()
     #market_list = ['zaif', 'quoinex', 'bitbank', 'bitflyer']
-    possible_market = ['zaif', 'quoinex' ,'bitbank', 'bitflyer']
-    setoff_threshold = 1000
+    possible_market = ['zaif','quoinex', 'bitbank' ]
+    setoff_threshold = -2000
     logfile = '/home/zhang/trading_log'
 
     trading_pairs = observer.get_offset_pairs(possible_market, True)
@@ -341,7 +346,7 @@ if __name__ == '__main__':
         # zaif-q q-zaif zaif-bitbank bitbank-zaif zaif-bitflyer bitflyer-zaif q-bitbank bitbank-q q-bitflyer bitflyer-q bitbank-bitflyer bitflyer-bitbank
         arb_label=[2,2,0,1,2,2,2,2,2,2,2,2]
 
-    check_balance = 0
+    check_balance = 1
     if check_balance:
         autotrading.calculate_captial(possible_market)
         autotrading.calculate_all_captial()
@@ -349,6 +354,8 @@ if __name__ == '__main__':
         print(autotrading.currency2)
         print(autotrading.allcurrency1)
         print(autotrading.allcurrency2)
+        ori_jpy = autotrading.allcurrency1
+        ori_btc = autotrading.allcurrency2
 
 
     #zaif2 = autotrading.get_asset_zaif()
@@ -362,13 +369,19 @@ if __name__ == '__main__':
     if_arb = 1
 
     offset_stabel = 5
+
+
+
     while if_arb:
+        time.sleep(2)
         arb_poss_label = [0] * pairs_number
         setoff_poss_label = [0] * pairs_number
         arb_chance = shared.get('arb_chance')
         offset_chance = shared.get('offset_chance')
         all_offsets = shared.get('offset')
         all_offset_pairs = shared.get('offset_pairs')
+
+
         #print(arb_chance)
         #print(offset_chance)
     # find arb chance
@@ -399,9 +412,12 @@ if __name__ == '__main__':
             # if there is profit in this arb and we can arb, do it after that mark it as offsetable
             if arb_poss_label[i]==1 and arb_label[i] == 2:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
+
                 print_and_write('It is good time to preform arb to buy @ %s and sell @ %s. Profit is %f '%(trading_pairs[i][0],trading_pairs[i][1],-cost ))
                 #TODO banzhuan
-                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.05)
+                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.015)
+                time.sleep(5)
+
                 # for test
                 if arb_result == 0:
                     print_and_write('Arb succeed, sleep 5 seconds')
@@ -418,8 +434,21 @@ if __name__ == '__main__':
                         #print(setoff_poss_label)
                         #print(arb_label)
                     else:
-                        raise Exception('Failed! because %d'%(arb_result))
-                    print_and_write('Arb failed code %d'%arb_result)
+                        #raise Exception('Failed! because %d'%(arb_result))
+                        autotrading.calculate_captial(possible_market)
+                        autotrading.calculate_all_captial()
+                        cur_jpy = autotrading.allcurrency1
+                        cur_btc = autotrading.allcurrency2
+                        profit_jpy = cur_jpy - ori_jpy
+                        profit_btc = cur_btc - ori_btc
+                        if profit_jpy < -100 or profit_btc < 0:
+                            print('Wrong operation , Stop')
+                            raise Exception('Reach loss cut')
+                        else:
+                            print('Profit %.3f' % profit_jpy)
+
+
+                    print_and_write('Arb failed code %d, continue'%arb_result)
                 break
 
 
@@ -433,6 +462,7 @@ if __name__ == '__main__':
                     print_and_write('It is good time to preform offset to buy @ %s and sell @ %s. Cost is %f' % (
                     trading_pairs[i][0], trading_pairs[i][1],cost))
                     arb_result = arbobject.offset_trade(trading_pairs[i][0], trading_pairs[i][1], market_price, market_list, amount = -1.0)
+                    time.sleep(5)
                 else:
                     print_and_write('Some thing wrong')
                     print_and_write(arb_label)
@@ -447,12 +477,22 @@ if __name__ == '__main__':
                         arb_label[i - 1] = 2
                     print_and_write(arb_label)
                     offset_stabel = 5
-                    raise Exception('Offset finished')
+                    #raise Exception('Offset finished')
                 elif arb_result == 2:
                     print_and_write('Offset failed code %d'%arb_result)
-                    raise Exception('Offset Finished')
+                    #raise Exception('Offset Finished')
                 else:
-                    raise Exception('Failed! because %d' % (arb_result))
+                    autotrading.calculate_captial(possible_market)
+                    autotrading.calculate_all_captial()
+                    cur_jpy = autotrading.allcurrency1
+                    cur_btc = autotrading.allcurrency2
+                    profit_jpy = cur_jpy - ori_jpy
+                    profit_btc = cur_btc - ori_btc
+                    if profit_jpy < -100 or profit_btc < 0:
+                        print('Wrong operation , Stop')
+                        raise Exception('Reach loss cut')
+                    else:
+                        print('Profit %.3f' % profit_jpy)
                 break
             elif setoff_poss_label[i] == 0 and arb_label[i] == 1:
                 cost = get_arb_cost(all_offsets, all_offset_pairs, trading_pairs[i][0], trading_pairs[i][1])
@@ -465,14 +505,6 @@ if __name__ == '__main__':
 
 
 
-        time.sleep(5)
-
-            #if setoff_poss_label[i] == 1 and arb_label[i] == 0:
-                #TODO pingcang
-            #    if succeed(pingcang):
-            #    arb_label[i] = 1
 
 
 
-
-        #arb_result = arbobject.arb_trade('bitbank', 'zaif', amount=0.1)

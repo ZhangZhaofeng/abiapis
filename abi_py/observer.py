@@ -283,8 +283,8 @@ class Mythread(threading.Thread):
 if __name__ == '__main__':
 
 # initial markets
-    trade_threshold = 5500
-    setoff_threshold = 1000
+    trade_threshold = 1200
+    setoff_threshold = -3000
     product_pair = 'BTC_JPY'
     possible_market = [ 'zaif',  'quoinex', 'bitbank', 'bitflyer']
     len_market = len(possible_market)
