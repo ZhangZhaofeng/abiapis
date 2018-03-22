@@ -4,6 +4,7 @@
 import private
 import marketing_qu
 from tradingapis.bitbank_api import public_api
+import time
 
 
 def get_depth():
@@ -27,14 +28,18 @@ if __name__ == '__main__':
 
 
     e = trade_class.get_last_executions()
+    #e = trade_class.cancle_order(235742126)
     print(e)
     e = trade_class.get_orders()
+    seconds = time.time() - e[0]['created_at']
+    print(seconds)
+
     print(e)
     e = get_depth()
     print(e['bids'][1])
-    #e = trade_class.cancle_order(224852585)
+
     #e = trade_class.cancle_order(224829082)
     #trade_class.trade_zaif_limit('sell', 935100, 0.1)
-    #trade_class.trade_quoine_limit('buy', '935000' ,'0.1')
+    #trade_class.trade_quoine_limit('sell', '920999' ,'0.01')
     #trade_class.trade_bitbank_limit('buy', )
-    trade_class.trade_bitbank_limit('buy', '929800', '0.15')
+    #trade_class.trade_bitbank_limit('buy', '929800', '0.15')
