@@ -27,7 +27,10 @@ if __name__ == '__main__':
     trade_class = marketing_qu.AutoTradingForMarketing_quoine()
 
 
-    e = trade_class.get_last_executions()
+    e = trade_class.quoinex_api.get_orders(limit=10)
+    for i in e['models']:
+        if i['status'] == 'filled':
+            print(i['side'] ,i['price'], i['quantity'], i['average_price'])
     #e = trade_class.cancle_order(235742126)
     print(e)
     e = trade_class.get_orders()
