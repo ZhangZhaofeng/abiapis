@@ -319,7 +319,7 @@ def write_log(filename, a_string):
         with open(filename, 'w') as lf:
             lf.write('%s @ %s \n' % (a_string, time_str))
 
-def print_and_write(str, filename = './trading_log'):
+def print_and_write(str, filename = '/home/zhang/trading_log'):
     print(str)
     write_log(filename, str)
 
