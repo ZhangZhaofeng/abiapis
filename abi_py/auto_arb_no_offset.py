@@ -421,6 +421,12 @@ if __name__ == '__main__':
                 # for test
                 if arb_result == 0:
                     print_and_write('Arb succeed, sleep 5 seconds')
+                    if (i % 2) == 0 and arb_label[i + 1] == 0:
+                        arb_label[i + 1] = 2
+                        print_and_write('Enable other side')
+                    elif (i % 2) == 1 and arb_label[i - 1] == 0:
+                        arb_label[i - 1] = 2
+                        print_and_write('Enable other side')
                 else:
                     # if no money find a chance to offset
                     if arb_result == 2:
@@ -445,6 +451,7 @@ if __name__ == '__main__':
                             print('Wrong operation , Stop')
                             raise Exception('Reach loss cut')
                         else:
+
                             print('Profit %.3f' % profit_jpy)
 
 
