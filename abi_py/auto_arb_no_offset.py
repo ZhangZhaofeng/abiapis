@@ -1,4 +1,3 @@
-
 #!/usr/bin/python3
 
 import observer,private,keysecret
@@ -319,7 +318,7 @@ def write_log(filename, a_string):
         with open(filename, 'w') as lf:
             lf.write('%s @ %s \n' % (a_string, time_str))
 
-def print_and_write(str, filename = '/home/zhang/trading_log'):
+def print_and_write(str, filename = './trading_log'):
     print(str)
     write_log(filename, str)
 
@@ -331,7 +330,7 @@ if __name__ == '__main__':
     arbobject = MyArbitrage()
     #market_list = ['zaif', 'quoinex', 'bitbank', 'bitflyer']
     possible_market = ['zaif','quoinex' , 'bitbank' ]
-    setoff_threshold = -2000
+    setoff_threshold = -1500
     logfile = '/home/zhang/trading_log'
 
     trading_pairs = observer.get_offset_pairs(possible_market, True)
@@ -421,11 +420,11 @@ if __name__ == '__main__':
                 # for test
                 if arb_result == 0:
                     print_and_write('Arb succeed, sleep 5 seconds')
-                    if (i % 2) == 0 and arb_label[i + 1] == 0:
-                        arb_label[i + 1] = 2
+                    if (i % 2) == 0 and arb_label[i + 1] < 2:
+                        arb_label[i + 1] += 1
                         print_and_write('Enable other side')
-                    elif (i % 2) == 1 and arb_label[i - 1] == 0:
-                        arb_label[i - 1] = 2
+                    elif (i % 2) == 1 and arb_label[i - 1] < 2:
+                        arb_label[i - 1] += 1
                         print_and_write('Enable other side')
                 else:
                     # if no money find a chance to offset
@@ -460,9 +459,4 @@ if __name__ == '__main__':
 
 
 # TODO add judje largest setoff pairs
-
-
-
-
-
 

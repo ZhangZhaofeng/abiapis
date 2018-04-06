@@ -196,7 +196,7 @@ def calculate_rate(result_bid_ask1,result_bid_ask2, market1 = '', market2 =''):
             sell = sell * (1- trading_fees(market1)*0.01)
 
     arb_value = sell - buy
-    arb_rate = (arb_value/buy)*100
+    #arb_rate = (arb_value/buy)*100
 
 
     return (arb_value, buy_market, sell_market, buy_price, sell_price)
@@ -252,7 +252,7 @@ def write_record(fname,rate,direction,str1,str2):
         buy = str2
         sell = str1
 
-    time_str = time.strftime('%Y-%m-%d %H:%M:%S',time.gmtime())
+    time_str = time.strftime('%Y-%m-%d %H:%M:%S')
     write_str = 'buy: %s, sell: %s, profit: %f %% time: %s \n'%(buy,sell,rate,time_str)
     fid.write(write_str)
     fid.close()
@@ -283,7 +283,7 @@ class Mythread(threading.Thread):
 if __name__ == '__main__':
 
 # initial markets
-    trade_threshold = 1200
+    trade_threshold = 1500
     setoff_threshold = -3000
     product_pair = 'BTC_JPY'
     possible_market = [ 'zaif',  'quoinex', 'bitbank', 'bitflyer']
@@ -389,11 +389,15 @@ if __name__ == '__main__':
         title_str = ''
         arb_chance = []
         for i in range(0,6):
+            if buymarket[i] == 'bitbank' or sellmarket[i] == 'bitbank':
+                trade_threshold += 1000
             if arb[i] > trade_threshold:
                 arb_str = arb_str +  'arb: buy at:%s %f, sell at:%s %f, profit: %f\n'%(buymarket[i],price_buy_pair[i],sellmarket[i],price_sell_pair[i],arb[i])
                 title_str = title_str + 'b:%s s:%s '%(buymarket[i], sellmarket[i])
                 arb_trigger = 1
                 arb_chance.append([buymarket[i], price_buy_pair[i], sellmarket[i], price_sell_pair[i], arb[i]])
+            if buymarket[i] == 'bitbank' or sellmarket[i] == 'bitbank':
+                trade_threshold -= 1000
 
         if memory_trigger == 0:
             shared.set('arb', arb)
