@@ -7,7 +7,7 @@ from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
 import apis
-import my_secret as ks
+import keysecret as ks
 import time
 import copy
 
