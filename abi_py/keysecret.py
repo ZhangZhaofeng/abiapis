@@ -12,3 +12,6 @@ zaif_secret=""
 
 bitflyer_api=""
 bitflyer_secret=""
+
+btcbox_api=''
+btcbox_secret=''
