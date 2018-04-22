@@ -7,6 +7,9 @@ from tradingapis.huobi_api import huobi
 from tradingapis.bitflyer_api import pybitflyer
 from tradingapis.bitbank_api import public_api
 
+import apis
+import private
+
 
 
 
@@ -107,23 +110,16 @@ def trading_fees(rate, market):
     return(rate - fees)
 
 
-if __name__ == '__main__':
+if __name__=='__main__':
+    #btcbox_api = '3r8mg-q4ez1-8puq6-9vbhg-twbr5-aqeah-cd8jz'
+    #btcbox_secret = 'Vn78n-7s(*3-af%AU-ukNR$-X(Uai-fCMz3-LarSh'
+    #from tradingapis.btcbox_api import apis
+    #aps = apis.API(btcbox_api, btcbox_secret)
+    #print(aps.ticker())
+    #print(aps.balance())
 
+    #print(apis.get_bid_ask_btcbox(''))
+    au = private.AutoTrading()
 
-    product_pair = 'BTC_ETH'
-    #product_pair = 'BTC_JPY'
-
-    while 1:
-        results_bitflyer = get_bid_ask_bitflyer(product_pair)
-        results_bittrex = get_bid_ask_bittrex(product_pair)
-        results_bitbank = get_bid_ask_bitbank(product_pair)
-        results_huobi = get_bid_ask_huobi(product_pair)
-        [rate1, direction1] = calculate_rate(results_bitflyer, results_bittrex)
-        [rate2, direction2] = calculate_rate(results_bitbank, results_bittrex)
-        [rate3, direction3] = calculate_rate(results_bitbank, results_bitflyer)
-        [rate4, direction4] = calculate_rate(results_bitbank, results_huobi)
-        [rate5, direction5] = calculate_rate(results_bitflyer, results_huobi)
-        [rate6, direction6] = calculate_rate(results_bittrex, results_huobi)
-        print ('f-r:%f, b-r:%f, b-f:%f\n'%(rate1,rate2,rate3))
-        print('b-h:%f, f-h:%f, r-h:%f\n' % (rate4, rate5, rate6))
-        time.sleep(10)
+    print(au.get_bank_personal_info('btcbox'))
+    print(au.judge_tradable('btcbox','sell',0.13))
