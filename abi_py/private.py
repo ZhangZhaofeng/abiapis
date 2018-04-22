@@ -6,6 +6,7 @@ from tradingapis.bitbank_api import public_api, private_api
 from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
+from tradingapis.btcbox_api import btcboxapis
 import apis
 import keysecret as ks
 import time
@@ -19,6 +20,7 @@ class AutoTrading:
         self.zaif_api = ZaifTradeApi(key=str(ks.zaif_api), secret=str(ks.zaif_secret))
         self.quoinex_api = client.Quoinex(api_token_id=str(ks.quoinex_api), api_secret=(ks.quoinex_secret))
         self.bitbank_api = private_api.bitbankcc_private(api_key=str(ks.bitbank_api), api_secret=str(ks.bitbank_secret))
+        self.btcbox_api = btcboxapis.boxapi(api_key=str(ks.btcbox_api), api_secret=str(ks.btcbox_secret))
 
     def trade_bitflyer(self, type, amount=0.001):
         print("trade bitflyer")
@@ -38,6 +40,18 @@ class AutoTrading:
                                                      minute_to_expire=10000,
                                                      time_in_force="GTC"
                                                      )
+        else:
+            print("error!")
+        print(order)
+
+    def trade_btcbox(self, type, amount=0.001):
+        print("trade bitflyer")
+        prices = self.btcbox_api.ticker()
+        price = prices['last']
+        if type == "BUY" or type == "buy":
+            order = self.btcbox_api.trade(price, amount, 'buy')
+        elif type == "SELL" or type == "sell":
+            order = self.btcbox_api.trade(price, amount, 'sell')
         else:
             print("error!")
         print(order)
@@ -117,6 +131,14 @@ class AutoTrading:
 
         print(order)
 
+    def get_asset_btcbox(self):
+        balances = self.btcbox_api.balance()
+        jpy_avai = 0.0
+        btc_avai = 0.0
+        jpy_avai = float(balances['jpy_balance'])
+        btc_avai = float(balances['btc_balance'])
+        return ([jpy_avai, btc_avai])
+
     def get_asset_bitbank(self):
         balances = self.bitbank_api.get_asset()
         jpy_avai = 0.0
@@ -171,6 +193,8 @@ class AutoTrading:
                     [jpy_avai, btc_avai] = self.get_asset_bitflyer()
                 elif bankname == "bitbank":
                     [jpy_avai, btc_avai] = self.get_asset_bitbank()
+                elif bankname == 'btcbox':
+                    [jpy_avai, btc_avai] = self.get_asset_btcbox()
                 else:
                     print("Bankname error")
                     [jpy_avai, btc_avai] = [0., 0.]
@@ -216,6 +240,9 @@ class AutoTrading:
         elif bankname == "zaif":
             [jpy_avai, btc_avai] = self.get_asset_zaif()
             [bid, ask] = apis.get_bid_ask_zaif('BTC_JPY')
+        elif bankname == 'btcbox':
+            [jpy_avai, btc_avai] = self.get_asset_btcbox()
+            [bid, ask] = apis.get_bid_ask_btcbox('BTC_JPY')
 
         buyable_btc = jpy_avai / ask * (1 - margin_ratio)
         if buyable_btc < 0.001:
@@ -282,7 +309,7 @@ class AutoTrading:
             print("Action invalid!")
             return False
 
-        if bankname != "quoinex" and bankname != "zaif" and bankname != "bitbank" and bankname != "bitflyer":
+        if bankname != "quoinex" and bankname != "zaif" and bankname != "bitbank" and bankname != "bitflyer" and bankname != "btcbox":
             print("Bankname invalid!")
             return False
 
