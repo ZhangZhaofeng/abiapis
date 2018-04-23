@@ -7,6 +7,7 @@ from tradingapis.bitbank_api import public_api, private_api
 from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
+from tradingapis.btcbox_api import apis
 import checkbalance
 import keysecret as ks
 import memcache
@@ -46,6 +47,12 @@ class MyAutoTrading(private.AutoTrading):
 
         try:
             self.bitflyer_api = pybitflyer.API(api_key=str(ks.bitflyer_api), api_secret=str(ks.bitflyer_secret))
+        except Exception:
+            print('Cant initialize bitflyer API')
+            self.initlize[3] = 1
+
+        try:
+            self.btcbox_api = apis.API(api_key=str(ks.bitflyer_api), api_secret=str(ks.bitflyer_secret))
         except Exception:
             print('Cant initialize bitflyer API')
             self.initlize[3] = 1
@@ -459,4 +466,3 @@ if __name__ == '__main__':
 
 
 # TODO add judje largest setoff pairs
-
