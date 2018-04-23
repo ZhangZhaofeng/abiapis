@@ -6,6 +6,7 @@ from tradingapis.bitflyer_api import pybitflyer
 from tradingapis.bitbank_api import public_api
 from tradingapis.zaif_api.impl import ZaifPublicApi,ZaifTradeApi
 from tradingapis.quoine_api import client
+from tradingapis.btcbox_api import apis
 
 
 
@@ -163,6 +164,17 @@ def get_bid_ask_quoine(product_pair):
     #ask = format(ask, '.1f')
     return([bid, ask])
 
+def get_bid_ask_btcbox(product_pair):
+    if product_pair == 'BTC_JPY':
+        product_pair = 'btc'
+    btcbox_api = apis.API()
+    jsons_dict = btcbox_api.ticker(coin=product_pair)
+    bid = float(jsons_dict['buy'])
+    #print(jsons_dict['buy'])
+    ask = float(jsons_dict['sell'])
+    return ([bid, ask])
+
+
 
 def calculate_rate(result_bid_ask1,result_bid_ask2, market1 = '', market2 =''):
 
@@ -286,7 +298,7 @@ if __name__ == '__main__':
     trade_threshold = 1500
     setoff_threshold = -3000
     product_pair = 'BTC_JPY'
-    possible_market = [ 'zaif',  'quoinex', 'bitbank', 'bitflyer']
+    possible_market = [ 'zaif',  'quoinex', 'bitbank', 'bitflyer', 'btcbox']
     len_market = len(possible_market)
     market_price = []
     for i in range(0, len_market):
@@ -297,6 +309,7 @@ if __name__ == '__main__':
     t_market.append(Mythread(target=get_bid_ask_quoine, args=(product_pair,)))
     t_market.append(Mythread(target=get_bid_ask_bitbank, args=(product_pair,)))
     t_market.append(Mythread(target=get_bid_ask_bitflyer, args=(product_pair,)))
+    t_market.append(Mythread(target=get_bid_ask_btcbox, args=(product_pair,)))
 
     for i in t_market:
         i.start()
@@ -388,16 +401,16 @@ if __name__ == '__main__':
         arb_str = ''
         title_str = ''
         arb_chance = []
-        for i in range(0,6):
+        for i in range(0,10):
             if buymarket[i] == 'bitbank' or sellmarket[i] == 'bitbank':
-                trade_threshold += 1000
+                trade_threshold += 1100
             if arb[i] > trade_threshold:
                 arb_str = arb_str +  'arb: buy at:%s %f, sell at:%s %f, profit: %f\n'%(buymarket[i],price_buy_pair[i],sellmarket[i],price_sell_pair[i],arb[i])
                 title_str = title_str + 'b:%s s:%s '%(buymarket[i], sellmarket[i])
                 arb_trigger = 1
                 arb_chance.append([buymarket[i], price_buy_pair[i], sellmarket[i], price_sell_pair[i], arb[i]])
             if buymarket[i] == 'bitbank' or sellmarket[i] == 'bitbank':
-                trade_threshold -= 1000
+                trade_threshold -= 1100
 
         if memory_trigger == 0:
             shared.set('arb', arb)
