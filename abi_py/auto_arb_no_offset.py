@@ -7,7 +7,7 @@ from tradingapis.bitbank_api import public_api, private_api
 from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
-from tradingapis.btcbox_api import apis
+from tradingapis.btcbox_api import btcboxapis
 import checkbalance
 import keysecret as ks
 import memcache
@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 class MyAutoTrading(private.AutoTrading):
-    market_number = 4
+    market_number = 5
     currency1 = [0.0] * market_number
     currency2 = [0.0] * market_number
     allcurrency1 = 0
@@ -52,7 +52,7 @@ class MyAutoTrading(private.AutoTrading):
             self.initlize[3] = 1
 
         try:
-            self.btcbox_api = apis.API(api_key=str(ks.bitflyer_api), api_secret=str(ks.bitflyer_secret))
+            self.btcbox_api = btcboxapis.boxapi(api_key=str(ks.btcbox_api), api_secret=str(ks.btcbox_secret))
         except Exception:
             print('Cant initialize bitflyer API')
             self.initlize[3] = 1
@@ -72,6 +72,8 @@ class MyAutoTrading(private.AutoTrading):
                     self.trade_bitflyer(action, amount)
                 elif bankname == "zaif":
                     self.trade_zaif(action, amount)
+                elif bankname == 'btcbox':
+                    self.trade_btcbox(action, amount)
 
                 print('%s %f @%s orded'%(action, amount, bankname))
                 return 0
@@ -94,6 +96,8 @@ class MyAutoTrading(private.AutoTrading):
             return(self.get_asset_bitbank())
         elif market == 'bitflyer':
             return(self.get_asset_bitflyer())
+        elif market == 'btcbox':
+            return(self.get_asset_btcbox())
         else:
             print('Error, specific a market')
             return([.0,.0])
@@ -336,9 +340,9 @@ if __name__ == '__main__':
     autotrading = MyAutoTrading()
     arbobject = MyArbitrage()
     #market_list = ['zaif', 'quoinex', 'bitbank', 'bitflyer']
-    possible_market = ['zaif','quoinex' , 'bitbank' ]
+    possible_market = ['bitbank' , 'btcbox']
     setoff_threshold = -1500
-    logfile = '/home/zhang/trading_log'
+    logfile = './trading_log'
 
     trading_pairs = observer.get_offset_pairs(possible_market, True)
     pairs_number = len(trading_pairs)
@@ -466,3 +470,4 @@ if __name__ == '__main__':
 
 
 # TODO add judje largest setoff pairs
+
