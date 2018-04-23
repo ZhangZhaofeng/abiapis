@@ -43,6 +43,9 @@ class AutoTrading:
         else:
             print("error!")
         print(order)
+        if 'error_message' in order:
+            raise Exception
+
 
     def trade_btcbox(self, type, amount=0.001):
         print("trade bitflyer")
