@@ -433,8 +433,8 @@ if __name__ == '__main__':
 
                 print_and_write('It is good time to preform arb to buy @ %s and sell @ %s. Profit is %f '%(trading_pairs[i][0],trading_pairs[i][1],-cost ))
                 #TODO banzhuan
-                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.015)
-                time.sleep(5)
+                arb_result = arbobject.arb_trade(trading_pairs[i][0], trading_pairs[i][1], amount=0.02)
+                time.sleep(3)
 
                 # for test
                 if arb_result == 0:
