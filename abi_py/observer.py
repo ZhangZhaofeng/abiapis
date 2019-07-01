@@ -7,7 +7,7 @@ from tradingapis.bitbank_api import public_api
 from tradingapis.zaif_api.impl import ZaifPublicApi,ZaifTradeApi
 from tradingapis.quoine_api import client
 from tradingapis.btcbox_api import apis
-
+from tradingapis.coincheck_api import market
 
 
 from timeit import Timer
@@ -174,7 +174,12 @@ def get_bid_ask_btcbox(product_pair):
     ask = float(jsons_dict['sell'])
     return ([bid, ask])
 
-
+def get_bid_ask_coincheck(product_pair):
+    a1 = market.Market()
+    products = a1.ticker()
+    bid = float(products['bid'])
+    ask = float(products['ask'])
+    return [bid, ask]
 
 def calculate_rate(result_bid_ask1,result_bid_ask2, market1 = '', market2 =''):
 
@@ -225,16 +230,12 @@ def calculate_offsetting(result_bid_ask1, result_bid_ask2, market1= '', market2=
 
 def trading_fees(market):
 
-    if market == 'bittrex':
-        fees = 0.25
-    elif market =='bitflyer':
-        fees = 0.13
+    if market =='bitflyer':
+        fees = 0.15
     elif market == 'bitbank':
-        fees = 0.0
-    elif market == 'zaif':
-        fees = -0.01
-    elif market == 'quoine':
-        fees = 0.0
+        fees = 0.1
+    elif market == 'btcbox':
+        fees = 0.1
     else:
         fees = 0.0
 
@@ -295,10 +296,12 @@ class Mythread(threading.Thread):
 if __name__ == '__main__':
 
 # initial markets
-    trade_threshold = 1500
+    trade_threshold = 2500
     setoff_threshold = -3000
     product_pair = 'BTC_JPY'
-    possible_market = [ 'zaif',  'quoinex', 'bitbank', 'bitflyer', 'btcbox']
+    #possible_market = [ 'zaif',  'quoinex', 'bitbank', 'bitflyer', 'btcbox', 'coincheck']
+    possible_market = ['zaif',  'quoinex', 'bitbank', 'btcbox', 'coincheck']
+
     len_market = len(possible_market)
     market_price = []
     for i in range(0, len_market):
@@ -308,8 +311,9 @@ if __name__ == '__main__':
     t_market.append(Mythread(target=get_bid_ask_zaif, args=(product_pair,)))
     t_market.append(Mythread(target=get_bid_ask_quoine, args=(product_pair,)))
     t_market.append(Mythread(target=get_bid_ask_bitbank, args=(product_pair,)))
-    t_market.append(Mythread(target=get_bid_ask_bitflyer, args=(product_pair,)))
     t_market.append(Mythread(target=get_bid_ask_btcbox, args=(product_pair,)))
+    t_market.append(Mythread(target=get_bid_ask_coincheck, args=(product_pair,)))
+    #t_market.append(Mythread(target=get_bid_ask_bitflyer, args=(product_pair,)))
 
     for i in t_market:
         i.start()
@@ -401,7 +405,7 @@ if __name__ == '__main__':
         arb_str = ''
         title_str = ''
         arb_chance = []
-        for i in range(0,10):
+        for i in range(0,arb_len):
             if buymarket[i] == 'bitbank' or sellmarket[i] == 'bitbank':
                 trade_threshold += 1100
             if arb[i] > trade_threshold:

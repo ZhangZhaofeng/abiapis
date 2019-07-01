@@ -9,6 +9,7 @@ from tradingapis.bitbank_api import public_api
 from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.quoine_api import client
 from tradingapis.btcbox_api import btcboxapis
+from tradingapis.coincheck_api import market
 
 from timeit import Timer
 import time
@@ -113,16 +114,6 @@ def get_bid_ask_bitflyer(product_pair):
     ask = jsons_dict['best_ask']
     return [bid, ask]
 
-def get_bid_ask_zaif(product_pair):
-    if product_pair == 'BTC_JPY':
-        product_pair = 'btc_jpy'
-    else:
-        product_pair = ''
-    zaif_api =ZaifPublicApi()
-    jsons_dict = zaif_api.ticker(product_pair)
-    bid = jsons_dict['bid']
-    ask = jsons_dict['ask']
-    return ([bid, ask])
 #TODO
 #def get_bid_ask_quoine():
 
@@ -168,6 +159,13 @@ def get_bid_ask_btcbox(product_pair):
     products = APIs.ticker()
     bid = float(products['buy'])
     ask = float(products['sell'])
+    return [bid, ask]
+
+def get_bid_ask_coincheck(product_pair):
+    a1 = market.Market()
+    products = a1.ticker()
+    bid = float(products['bid'])
+    ask = float(products['ask'])
     return [bid, ask]
 
 def calculate_rate(result_bid_ask1, result_bid_ask2):

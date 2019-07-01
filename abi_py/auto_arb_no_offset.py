@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import observer,private,keysecret
+import observer,private
 
 from tradingapis.bitflyer_api import pybitflyer
 from tradingapis.bitbank_api import public_api, private_api
@@ -8,7 +8,7 @@ from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
 from tradingapis.btcbox_api import btcboxapis
-import checkbalance
+from tradingapis.coincheck_api import order, market
 import keysecret as ks
 import memcache
 import time
@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 class MyAutoTrading(private.AutoTrading):
-    market_number = 5
+    market_number = 6
     currency1 = [0.0] * market_number
     currency2 = [0.0] * market_number
     allcurrency1 = 0
@@ -30,19 +30,19 @@ class MyAutoTrading(private.AutoTrading):
         try:
             self.zaif_api = ZaifTradeApi(key=str(ks.zaif_api), secret=str(ks.zaif_secret))
         except Exception:
-            print('Cant initialize Zaif API')
+            print('Cant initialize zaif API')
             self.initlize[0] = 1
         try:
             self.quoinex_api = client.Quoinex(api_token_id=str(ks.quoinex_api), api_secret=(ks.quoinex_secret))
         except Exception:
-            print('Cant initialize Quoinex API')
+            print('Cant initialize quoinex API')
             self.initlize[1] = 1
 
         try:
             self.bitbank_api = private_api.bitbankcc_private(api_key=str(ks.bitbank_api),
                                                              api_secret=str(ks.bitbank_secret))
         except Exception:
-            print('Cant initialize Bitbank API')
+            print('Cant initialize bitbank API')
             self.initlize[2] = 1
 
         try:
@@ -54,8 +54,14 @@ class MyAutoTrading(private.AutoTrading):
         try:
             self.btcbox_api = btcboxapis.boxapi(api_key=str(ks.btcbox_api), api_secret=str(ks.btcbox_secret))
         except Exception:
-            print('Cant initialize bitflyer API')
-            self.initlize[3] = 1
+            print('Cant initialize btcbox API')
+            self.initlize[4] = 1
+
+        try:
+            self.coincheck_api = order.Order(access_key=str(ks.coincheck_api), secret_key=str(ks.coincheck_secret))
+        except Exception:
+            print('Cant initialize btcbox API')
+            self.initlize[5] = 1
 
     def execute_trade(self, bankname, action, amount):
         trytimes = 3
@@ -74,6 +80,8 @@ class MyAutoTrading(private.AutoTrading):
                     self.trade_zaif(action, amount)
                 elif bankname == 'btcbox':
                     self.trade_btcbox(action, amount)
+                elif bankname == 'coincheck':
+                    self.trade_coincheck(action, amount)
 
                 print('%s %f @%s orded'%(action, amount, bankname))
                 return 0
@@ -98,6 +106,8 @@ class MyAutoTrading(private.AutoTrading):
             return(self.get_asset_bitflyer())
         elif market == 'btcbox':
             return(self.get_asset_btcbox())
+        elif market == 'coincheck':
+            return(self.get_asset_coincheck())
         else:
             print('Error, specific a market')
             return([.0,.0])
@@ -116,8 +126,6 @@ class MyAutoTrading(private.AutoTrading):
                 except Exception:
                     print ('Exception occured during ask captial @ %s, try last %d time'%(possible_market[i],try_times))
                     try_times -= 1
-
-
 
 
     def calculate_all_captial(self):
@@ -339,8 +347,8 @@ def print_and_write(str, filename = './trading_log'):
 if __name__ == '__main__':
     autotrading = MyAutoTrading()
     arbobject = MyArbitrage()
-    #market_list = ['zaif', 'quoinex', 'bitbank', 'bitflyer']
-    possible_market = ['bitbank' , 'btcbox']
+    #market_list = ['zaif', 'quoinex', 'coincheck']
+    possible_market = ['zaif', 'quoinex', 'coincheck']
     setoff_threshold = -1500
     logfile = './trading_log'
 
@@ -463,7 +471,8 @@ if __name__ == '__main__':
                         else:
 
                             print('Profit %.3f' % profit_jpy)
-
+                        if profit_jpy > 500:
+                            ori_jpy = cur_jpy - 300
 
                     print_and_write('Arb failed code %d, continue'%arb_result)
                 break

@@ -7,6 +7,7 @@ from tradingapis.zaif_api.impl import ZaifPublicApi, ZaifTradeApi
 from tradingapis.zaif_api.api_error import *
 from tradingapis.quoine_api import client
 from tradingapis.btcbox_api import btcboxapis
+from tradingapis.coincheck_api import order, market
 import apis
 import keysecret as ks
 import time
@@ -21,6 +22,7 @@ class AutoTrading:
         self.quoinex_api = client.Quoinex(api_token_id=str(ks.quoinex_api), api_secret=(ks.quoinex_secret))
         self.bitbank_api = private_api.bitbankcc_private(api_key=str(ks.bitbank_api), api_secret=str(ks.bitbank_secret))
         self.btcbox_api = btcboxapis.boxapi(api_key=str(ks.btcbox_api), api_secret=str(ks.btcbox_secret))
+        self.coincheck_api = order.Order(access_key=str(ks.coincheck_api), secret_key=str(ks.coincheck_secret))
 
     def trade_bitflyer(self, type, amount=0.001):
         print("trade bitflyer")
@@ -48,7 +50,7 @@ class AutoTrading:
 
 
     def trade_btcbox(self, type, amount=0.001):
-        print("trade bitflyer")
+        print("trade_btcbox")
         prices = self.btcbox_api.ticker()
         price = prices['last']
         if type == "BUY" or type == "buy":
@@ -134,6 +136,24 @@ class AutoTrading:
 
         print(order)
 
+    def trade_coincheck(self, type, amount=0.001):
+        print("trade coincheck")
+        margin_ratio = 0.03
+        market_info = market.Market().ticker()
+        if type == "BUY" or type == "buy":
+            buy_value = int(round(market_info.get('ask') * (1 + margin_ratio) / 10, 0) * 10)
+            order = self.coincheck_api.buy_btc_jpy(amount = amount, rate = buy_value).get('success')
+            if not order:
+                raise Exception
+        elif type == "SELL" or type == "sell":
+            sell_value = int(round(market_info.get('bid') * (1 - margin_ratio) / 10, 0) * 10)
+            order = self.coincheck_api.sell_btc_jpy(amount = amount, rate = sell_value).get('success')
+            if not order:
+                raise Exception
+        else:
+            print("error!")
+        print(order)
+
     def get_asset_btcbox(self):
         balances = self.btcbox_api.balance()
         jpy_avai = 0.0
@@ -185,6 +205,13 @@ class AutoTrading:
         jpy_avai = float(infos['funds']['jpy'])
         return ([jpy_avai, btc_avai])
 
+    def get_asset_coincheck(self):
+        infos = self.coincheck_api.get_balance()
+        btc_avai = float(infos['btc'])
+        jpy_avai = float(infos['jpy'])
+        return([jpy_avai, btc_avai])
+        #TODO
+
     def get_asset_from_bank(self, bankname):
         while 1:
             try:
@@ -198,6 +225,8 @@ class AutoTrading:
                     [jpy_avai, btc_avai] = self.get_asset_bitbank()
                 elif bankname == 'btcbox':
                     [jpy_avai, btc_avai] = self.get_asset_btcbox()
+                elif bankname == 'coincheck':
+                    [jpy_avai, btc_avai] = self.get_asset_coincheck()
                 else:
                     print("Bankname error")
                     [jpy_avai, btc_avai] = [0., 0.]
@@ -246,6 +275,9 @@ class AutoTrading:
         elif bankname == 'btcbox':
             [jpy_avai, btc_avai] = self.get_asset_btcbox()
             [bid, ask] = apis.get_bid_ask_btcbox('BTC_JPY')
+        elif bankname == 'coincheck':
+            [jpy_avai, btc_avai] = self.get_asset_coincheck()
+            [bid, ask] = apis.get_bid_ask_coincheck('BTC_JPY')
 
         buyable_btc = jpy_avai / ask * (1 - margin_ratio)
         if buyable_btc < 0.001:
@@ -273,6 +305,10 @@ class AutoTrading:
                     self.trade_bitflyer(action, amount)
                 elif bankname == "zaif":
                     self.trade_zaif(action, amount)
+                elif bankname == 'btcbox':
+                    self.trade_btcbox(action, amount)
+                elif bankname == 'coincheck':
+                    self.trade_coincheck(action, amount)
 
                 print('%s %f @%s orded' % (action, amount, bankname))
                 return True
@@ -284,7 +320,8 @@ class AutoTrading:
                 print("ZaifApiError catched while trading, trying again.")
                 time.sleep(0.5)
             except Exception:
-                print("Other exception catched while trading, trying again.")
+                #print("Other exception catched while trading, trying again.")
+                print(Exception)
                 time.sleep(0.5)
                 continue
 
@@ -312,7 +349,7 @@ class AutoTrading:
             print("Action invalid!")
             return False
 
-        if bankname != "quoinex" and bankname != "zaif" and bankname != "bitbank" and bankname != "bitflyer" and bankname != "btcbox":
+        if bankname != "quoinex" and bankname != "zaif" and bankname != "bitbank" and bankname != "bitflyer" and bankname != "btcbox" and bankname != "coincheck":
             print("Bankname invalid!")
             return False
 
