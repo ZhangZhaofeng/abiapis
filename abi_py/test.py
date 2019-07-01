@@ -111,14 +111,6 @@ def trading_fees(rate, market):
 
 
 if __name__=='__main__':
-    #btcbox_api = '3r8mg-q4ez1-8puq6-9vbhg-twbr5-aqeah-cd8jz'
-    #btcbox_secret = 'Vn78n-7s(*3-af%AU-ukNR$-X(Uai-fCMz3-LarSh'
-    #from tradingapis.btcbox_api import apis
-    #aps = apis.API(btcbox_api, btcbox_secret)
-    #print(aps.ticker())
-    #print(aps.balance())
-
-    #print(apis.get_bid_ask_btcbox(''))
     au = private.AutoTrading()
 
     print(au.get_bank_personal_info('btcbox'))
